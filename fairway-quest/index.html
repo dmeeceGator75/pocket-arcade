@@ -601,6 +601,7 @@ function resize(){const d=window.devicePixelRatio||1;VW=innerWidth;VH=innerHeigh
 addEventListener('resize',resize);resize();
 let S=null; // the active round, or null when in menus
 const mouse={x:0,y:0,moved:false};
+const ACC_IN=.1,ACC_OUT=.3; // edges of the centre and light-green accuracy zones, as a fraction of the half-meter
 const CAM_UP=100; // how far above screen centre the view sits, to clear the controls at the bottom
 let isTouch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
 
@@ -652,12 +653,17 @@ function action(){
 function cancelSwing(){if(S&&(S.state==='power'||S.state==='acc')){S.state='aim';S.power=0;}}
 function fire(){
   const p=save.profile,club=CLUBS[S.club],l=lie(),put=club.cat==='putter';
-  let v=S.accv;const a=Math.abs(v),perfect=a<.1;v=perfect?0:Math.sign(v)*(a-.1)/.9;
+  // Accuracy zones on the meter (a = how far from the centre the marker stopped, 0..1):
+  //   centre zone  (a < ACC_IN):  dead straight
+  //   light zone   (a < ACC_OUT): 2 to 6 degrees off line - with a driver that is the edge of the fairway or the first cut of rough
+  //   outside:                    6 up to 22 degrees off line - trees, sand and water come into play
+  let v=S.accv;const a=Math.abs(v),perfect=a<ACC_IN,wild=a>=ACC_OUT;
+  v=perfect?0:Math.sign(v)*(wild?6+(a-ACC_OUT)/(1-ACC_OUT)*16:2+(a-ACC_IN)/(ACC_OUT-ACC_IN)*4);
   let maxDev;
-  if(put)maxDev=5*(1-.035*(p.stats.touch-1))*(1-eq('putter').touch);
+  if(put)maxDev=.25*Math.max(.3,(1-.035*(p.stats.touch-1))*(1-eq('putter').touch));
   else{const ea=club.cat==='driver'?eq('driver').acc:club.cat==='iron'?eq('irons').acc:eq('wedge').rec*.4;
     const lf=1+(terOf(S.h,l).dev-1)*Math.max(.2,1-.03*(p.stats.recovery-1));
-    maxDev=13*lf*(1-.03*(p.stats.accuracy-1))*(1-ea);}
+    maxDev=lf*Math.max(.4,(1-.03*(p.stats.accuracy-1))*(1-ea));} // stats and gear shrink every miss, down to 40% of the base
   const noise=(Math.random()-.5)*(put?.5:2)*(perfect?.3:1);
   const ang=S.aim+(v*maxDev+noise)*Math.PI/180,pw=S.power;
   const carryMax=shotMax();
@@ -665,7 +671,7 @@ function fire(){
   if(put){const sp=Math.sqrt(2*TER.g.decel*pw*S.puttMax);S.vx=Math.cos(ang)*sp;S.vy=Math.sin(ang)*sp;S.state='roll';}
   else{const carry=carryMax*pw,T=1+carry/110;S.fl={t:0,T,apex:club.apex*(.35+.65*pw)};S.vx=Math.cos(ang)*carry/T;S.vy=Math.sin(ang)*carry/T;
     S.tileKey=Math.floor(S.ball.x/TILE)+','+Math.floor(S.ball.y/TILE);S.state='flight';}
-  if(perfect)setMsg('Perfect!');
+  if(perfect)setMsg('Perfect!');else if(wild&&!put)setMsg(v<0?'Pulled left!':'Pushed right!');
   updateHud();
 }
 function penalty(why){
@@ -807,7 +813,7 @@ function draw(dt){
   const gr=ctx.createLinearGradient(mx,0,mx+mw,0);gr.addColorStop(0,'#7fe08a');gr.addColorStop(.7,'#f4c542');gr.addColorStop(1,'#ff6b5b');
   ctx.fillStyle=gr;ctx.fillRect(mx,my,mw*(aiming?S.power:0),26);
   ctx.fillStyle='rgba(255,255,255,.35)';for(let i=1;i<4;i++)ctx.fillRect(mx+mw*i/4,my,1,26);
-  ctx.fillStyle='#0f2716';ctx.fillRect(mx,my+32,mw,16);ctx.fillStyle='#7fe08a';ctx.fillRect(mx+mw*.45,my+32,mw*.1,16);
+  ctx.fillStyle='#0f2716';ctx.fillRect(mx,my+32,mw,16);ctx.fillStyle='#b9ecc0';ctx.fillRect(mx+mw/2*(1-ACC_OUT),my+32,mw*ACC_OUT,16);ctx.fillStyle='#2fbf4f';ctx.fillRect(mx+mw/2*(1-ACC_IN),my+32,mw*ACC_IN,16);
   if(S.state==='acc'){ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.fillRect(mx+mw/2+S.accv*mw/2-3,my+28,6,24);ctx.strokeRect(mx+mw/2+S.accv*mw/2-3,my+28,6,24);}
   ctx.fillStyle='#fff';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='bold 13px Segoe UI,sans-serif';ctx.textAlign='left';ctx.fillText(S.state==='aim'?(isTouch?'Drag on the course to aim, then tap Swing':'Click to swing'):S.state==='power'?tap+' to set POWER  '+Math.round(S.power*100)+'%':S.state==='acc'?tap+' in the green zone for ACCURACY':'',mx+7,my+18);ctx.shadowBlur=0;
   // message
