@@ -161,32 +161,53 @@ const EQUIP={
     {name:'Steelhead 300',lvl:3,price:150,dist:.04,acc:.06},
     {name:'Titan Ti',lvl:6,price:450,dist:.08,acc:.12},
     {name:'Carbon Cannon',lvl:10,price:1000,dist:.13,acc:.18},
-    {name:'Thunderclap Pro',lvl:15,price:2200,dist:.18,acc:.25}],
+    {name:'Thunderclap Pro',lvl:15,price:2200,dist:.18,acc:.25},
+    {name:'HX Tour Driver',lvl:10,price:3600,dist:.22,acc:.30,req:'card'},
+    {name:'Black Series Driver',lvl:14,price:6200,dist:.26,acc:.35,req:'rookieWin'}],
   irons:[
     {name:'Garage Sale Irons',lvl:1,price:0,dist:0,acc:0},
     {name:'Cavity Backs',lvl:2,price:120,dist:.03,acc:.08},
     {name:'Forged Blades',lvl:5,price:400,dist:.06,acc:.14},
     {name:'Tour Precision',lvl:9,price:950,dist:.09,acc:.21},
-    {name:'Laser Line Elite',lvl:14,price:2000,dist:.13,acc:.28}],
+    {name:'Laser Line Elite',lvl:14,price:2000,dist:.13,acc:.28},
+    {name:'HX Forged Irons',lvl:10,price:3400,dist:.16,acc:.33,req:'card'},
+    {name:'Black Series Irons',lvl:14,price:6000,dist:.19,acc:.38,req:'rookieWin'}],
   wedge:[
     {name:'Rusty Wedges',lvl:1,price:0,rec:0,spin:0},
     {name:'Grinder Wedges',lvl:2,price:100,rec:.12,spin:.2},
     {name:'Spin Milled',lvl:5,price:350,rec:.24,spin:.4},
     {name:'Escape Artist',lvl:9,price:800,rec:.36,spin:.55},
-    {name:'Sand Wizard',lvl:13,price:1700,rec:.5,spin:.7}],
+    {name:'Sand Wizard',lvl:13,price:1700,rec:.5,spin:.7},
+    {name:'HX Grind Wedges',lvl:10,price:3000,rec:.58,spin:.78,req:'card'},
+    {name:'Black Series Wedges',lvl:14,price:5200,rec:.66,spin:.85,req:'rookieWin'}],
   putter:[
     {name:'Mini-golf Putter',lvl:1,price:0,touch:0},
     {name:'Blade Putter',lvl:2,price:110,touch:.1},
     {name:'Mallet Master',lvl:4,price:320,touch:.2},
     {name:'Balanced Two-Ball',lvl:8,price:750,touch:.3},
-    {name:'The Cup Magnet',lvl:12,price:1600,touch:.42}],
+    {name:'The Cup Magnet',lvl:12,price:1600,touch:.42},
+    {name:'HX Tour Blade',lvl:10,price:2900,touch:.5,req:'card'},
+    {name:'Black Series Putter',lvl:14,price:5000,touch:.58,req:'rookieWin'}],
   ball:[
     {name:'Range Balls',lvl:1,price:0,dist:0,wind:0},
     {name:'Two-Piece Distance',lvl:3,price:130,dist:.02,wind:.1},
     {name:'Soft Feel',lvl:6,price:380,dist:.035,wind:.2},
     {name:'Tour Urethane',lvl:10,price:900,dist:.05,wind:.32},
-    {name:'Windcutter X',lvl:15,price:1900,dist:.07,wind:.45}]
+    {name:'Windcutter X',lvl:15,price:1900,dist:.07,wind:.45},
+    {name:'HX Tour Ball',lvl:10,price:3200,dist:.085,wind:.52,req:'card'},
+    {name:'Black Series Ball',lvl:14,price:5600,dist:.10,wind:.6,req:'rookieWin'}]
 };
+// Brands: each is a full range, one item per slot. The starter gear (tier 0) is unbranded.
+// Halcyon needs a Tour Card (req:'card'); Vanta needs a Rookie Tour event win (req:'rookieWin').
+const BRANDS=['','Kestrel','Ironwood','Northwind','Stratos','Halcyon','Vanta'];
+Object.values(EQUIP).forEach(list=>list.forEach((it,i)=>{it.brand=BRANDS[i]||'';}));
+// what still blocks buying an item ('' when nothing does)
+function gearLock(it){
+  const p=save.profile,t=p.tour||{pos:{}};
+  if(it.req==='card'&&!t.card)return'Needs Tour Card';
+  if(it.req==='rookieWin'&&!tourWins(TOURS[1],t))return'Needs a Rookie win';
+  return p.level<it.lvl?'Level '+it.lvl:'';
+}
 function equipDesc(slot,it){
   const p=v=>'+'+Math.round(v*100)+'%';
   if(slot==='driver'||slot==='irons')return it.dist?`${p(it.dist)} distance, ${p(it.acc)} accuracy`:'No bonus';
@@ -227,7 +248,7 @@ function terrainAt(h,x,y){const tx=Math.floor(x/TILE),ty=Math.floor(y/TILE);if(t
 function holeYards(h){return Math.round(Math.hypot(h.pin.x-h.tee.x,h.pin.y-h.tee.y));}
 function genHole(par,R,opt){
   opt=opt||{};const cols=40;
-  const len=par===3?120+R()*80:par===4?310+R()*120:480+R()*70;
+  const len=(par===3?120+R()*80:par===4?310+R()*120:480+R()*70)*(opt.hard?1.1:1);
   const rows=Math.round(len/TILE)+16;
   const g=[];for(let y=0;y<rows;y++)g.push(new Array(cols).fill('r'));
   const tee={x:12+R()*16,y:rows-5},grn={x:11+R()*18,y:7.5};
@@ -243,7 +264,7 @@ function genHole(par,R,opt){
     const dx=q.x-o.x,dy=q.y-o.y,L=Math.hypot(dx,dy)||1;return{x:p.x,y:p.y,nx:-dy/L,ny:dx/L};};
   const disc=(cx,cy,rx,ry,ch,ok)=>{for(let y=Math.floor(cy-ry-1);y<=cy+ry+1;y++)for(let x=Math.floor(cx-rx-1);x<=cx+rx+1;x++){
     if(y<0||y>=rows||x<0||x>=cols)continue;const ex=(x+.5-cx)/rx,ey=(y+.5-cy)/ry;if(ex*ex+ey*ey<=1&&ok.includes(g[y][x]))g[y][x]=ch;}};
-  const rx=2.6+R(),ry=2.6+R(),fw=2.7+R()*.9,ph=R()*6.28;
+  const rx=2.6+R(),ry=2.6+R(),fw=2.7+R()*.9-(opt.hard?.4:0),ph=R()*6.28;
   // fairway
   const startD=par===3?total*.6:9;
   for(const p of path){if(p.d<startD||p.d>total-ry)continue;const r=fw+.6*Math.sin(p.d*.15+ph);disc(p.x,p.y,r,r,'f','r');}
@@ -261,6 +282,16 @@ function genHole(par,R,opt){
   if(R()<(opt.water==null?.4:opt.water)){const r=2.5+R()*2;
     if(par===3){const p=at(total*(.3+R()*.25));disc(p.x,p.y,r*1.6,r*.9,'w','rfs');}
     else{const p=at(total*(.3+R()*.5)),sd=R()<.5?-1:1;disc(p.x+p.nx*sd*(fw+r-.6),p.y+p.ny*sd*(fw+r-.6),r,r*1.3,'w','rfs');}}
+  // hard set-up: extra bunkers, trees standing in the fairway, and a pond if the hole has no water.
+  // Uses its own random stream so the hole keeps the same shape as the normal version.
+  if(opt.hard){const R2=rng(Math.round(len*7)+par*101);
+    for(let i=0,n=par===3?2:3;i<n;i++){
+      if(i===0||par===3){const a=R2()*6.28,r=1.1+R2()*.5;disc(grn.x+Math.cos(a)*(rx+1.7),grn.y+Math.sin(a)*(ry+1.7),r,r,'s','rf');}
+      else{const p=at(total*(.3+R2()*.45)),sd=R2()<.5?-1:1,r=1.2+R2()*.6;disc(p.x+p.nx*sd*(fw+1.3),p.y+p.ny*sd*(fw+1.3),r,r*1.3,'s','rf');}}
+    if(par>3){
+      for(let i=0;i<par-3;i++){const p=at(total*(.45+i*.22+R2()*.1)),sd=R2()<.5?-1:1,o=.8+R2();disc(p.x+p.nx*sd*o,p.y+p.ny*sd*o,1,1.2,'t','f');}
+      if(!g.some(r=>r.includes('w'))){const p=at(total*(.35+R2()*.4)),sd=R2()<.5?-1:1,r=2.6+R2();disc(p.x+p.nx*sd*(fw+r-.4),p.y+p.ny*sd*(fw+r-.4),r,r*1.3,'w','rfs');}}
+  }
   // trees
   const p1=R()*6.28,p2=R()*6.28;
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){if(g[y][x]!=='r')continue;let m=1e9;
@@ -316,7 +347,7 @@ function buildHole(s){
       else if(e>0?R()<.8:(m>4.5&&R()<.05))g[y][x]='t';
       continue;}
     if(D?((far&&R()<.2)||(m>4.5&&R()<.035)):(far||((x<1||x>cols-2)&&R()<.7)||(m>5&&R()<.04)))g[y][x]='t';}
-  patch(s.trees,'t','r');
+  patch(s.trees,'t','r');patch(s.fwTrees,'t','rf');
   const pin=s.pin||[0,0];
   return{par:s.par,cols,rows:g.map(r=>r.join('')),tee:{x:tx*TILE,y:ty*TILE},pin:{x:grn.x*TILE+pin[0],y:grn.y*TILE-pin[1]},slope:{dir:s.slopeDir||0,str:s.slope||0},name:s.name,note:s.note,theme:s.theme};
 }
@@ -444,6 +475,39 @@ const TROPIC_DESIGNS=[
 BUILTIN.splice(2,0,{id:'builtin5',builtin:true,theme:'tropical',name:'Coral Cay',desc:'Hand-designed tropical island course. Beaches, palms and ocean on nearly every shot.',
   holes:TROPIC_DESIGNS.map((s,i)=>buildHole(Object.assign({theme:'tropical',seed:900+i*17},s)))});
 
+/* ---------------- Rookie Tour set-ups ----------------
+   The same five courses, made harder: about 10% longer, narrower fairways, trees (or cactus / palms)
+   standing in the fairway, extra bunkers, and a pond on holes that had no water. */
+function toughSpec(s,i){
+  const R=rng(7000+i*31+s.path.length*13),K=1.1,up=v=>Math.round(v*K),sc=l=>(l||[]).map(q=>[q[0],up(q[1]),q[2],q[3]]);
+  const dGap=s.theme==='desert'?30:s.theme==='tropical'?36:45,fw=(s.fw||16)-2;
+  const t=Object.assign({},s,{path:s.path.map(p=>[p[0],up(p[1])]),sand:sc(s.sand),water:sc(s.water),trees:sc(s.trees),fairway:sc(s.fairway),clear:sc(s.clear),
+    fwTrees:[],fw,gap:Math.max(24,(s.gap||dGap)-6),seed:(s.seed||7)+500});
+  if(s.fwStart!=null)t.fwStart=up(s.fwStart);
+  // point a fraction f of the way along the centre line, with the sideways direction (nx, nu)
+  const P=t.path,segs=[];let L=0;for(let k=0;k<P.length-1;k++){const l=Math.hypot(P[k+1][0]-P[k][0],P[k+1][1]-P[k][1]);segs.push(l);L+=l;}
+  const at=f=>{let d=f*L,k=0;while(k<segs.length-1&&d>segs[k]){d-=segs[k];k++;}const a=P[k],b=P[k+1],q=d/segs[k],dx=b[0]-a[0],du=b[1]-a[1],l=Math.hypot(dx,du)||1;
+    return{x:lerp(a[0],b[0],q),u:lerp(a[1],b[1],q),nx:du/l,nu:-dx/l};};
+  const side=()=>R()<.5?-1:1,cx=v=>clamp(v,14,186),end=P[P.length-1],gr=s.green||[15,14];
+  // extra greenside bunkers
+  for(let n=s.par===3?2:1,k=0;k<n;k++){const a=R()*6.28;t.sand.push([cx(end[0]+Math.cos(a)*(gr[0]+9)),end[1]+Math.sin(a)*(gr[1]+9),7,7]);}
+  if(s.par===3){const p=at(.62),sd=side();t.fwTrees.push([cx(p.x+p.nx*sd*13),p.u+p.nu*sd*13,5,6]);}
+  else{
+    for(let k=0;k<2;k++){const p=at(.3+k*.25+R()*.15),sd=side(),o=fw+8;t.sand.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,8,11]);}
+    for(let k=0;k<s.par-3;k++){const p=at(.46+k*.22+R()*.08),sd=side(),o=4+R()*5;t.fwTrees.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,5,6]);}
+    if(!(s.water&&s.water.length)&&s.theme!=='tropical'){const p=at(.36+R()*.36),sd=side(),r=13+R()*4,o=fw+r-1;t.water.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,r,r*1.35]);}
+  }
+  return t;
+}
+const ROOKIE_DESC='Rookie Tour set-up: longer, tighter, with more hazards.';
+const ROOKIE=[
+  Object.assign(genCourse('Pine Hollow (Rookie)',1207,{water:.3,hard:true}),{id:'rookie1',builtin:true,rookie:true,desc:ROOKIE_DESC}),
+  Object.assign(genCourse('Lakeside Links (Rookie)',8841,{water:.85,hard:true}),{id:'rookie2',builtin:true,rookie:true,desc:ROOKIE_DESC}),
+  {id:'rookie3',builtin:true,rookie:true,name:'Cedar Ridge (Rookie)',desc:ROOKIE_DESC,holes:DESIGNS.map((s,i)=>buildHole(toughSpec(Object.assign({seed:101+i*11},s),i)))},
+  {id:'rookie4',builtin:true,rookie:true,theme:'desert',name:'Copper Mesa (Rookie)',desc:ROOKIE_DESC,holes:DESERT_DESIGNS.map((s,i)=>buildHole(toughSpec(Object.assign({theme:'desert',seed:500+i*13},s),i)))},
+  {id:'rookie5',builtin:true,rookie:true,theme:'tropical',name:'Coral Cay (Rookie)',desc:ROOKIE_DESC,holes:TROPIC_DESIGNS.map((s,i)=>buildHole(toughSpec(Object.assign({theme:'tropical',seed:900+i*17},s),i)))}
+];
+
 /* ---------------- rendering ---------------- */
 function holeBitmap(h){
   const tp=TILE*PPY,cols=h.cols,n=h.rows.length,W=cols*tp,H=n*tp;
@@ -542,7 +606,7 @@ let isTouch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
 
 function startRound(course,idxs,opt){
   opt=opt||{};
-  S={course,idxs,i:0,scores:[],practice:!!opt.practice,onDone:opt.onDone,xp:0,coins:0,ups:0};
+  S={course,idxs,i:0,scores:[],practice:!!opt.practice,onDone:opt.onDone,tour:opt.tour,xp:0,coins:0,ups:0};
   $('#ui').classList.add('hidden');$('#hud').classList.remove('hidden');
   startHole();
 }
@@ -574,7 +638,7 @@ function updateHud(){
   if(!S)return;const h=S.h,d=distPin(),c=CLUBS[S.club];
   const rel=S.scores.reduce((a,s,i)=>a+s-S.course.holes[S.idxs[i]].par,0);
   const dtxt=(lie()==='g'&&d<20)?Math.round(d*3)+' ft':Math.round(d)+' yd';
-  $('#hudTxt').innerHTML=`Hole <b>${S.idxs[S.i]+1}</b> &bull; Par ${h.par} &bull; ${holeYards(h)} yd &bull; Round ${fmtRel(rel)}${S.practice?' &bull; Practice':''}<br>Stroke ${S.strokes+1} &bull; <b>${dtxt}</b> to pin &bull; ${terOf(h,lie()).name}`;
+  $('#hudTxt').innerHTML=`Hole <b>${S.idxs[S.i]+1}</b> &bull; Par ${h.par} &bull; ${holeYards(h)} yd &bull; Round ${fmtRel(rel)}${S.practice?' &bull; Practice':S.tour!=null?' &bull; Tour event':''}<br>Stroke ${S.strokes+1} &bull; <b>${dtxt}</b> to pin &bull; ${terOf(h,lie()).name}`;
   $('#clubName').innerHTML=`<b>${c.name}</b><span class="small">${c.cat==='putter'?'up to '+S.puttMax+' yd':Math.round(shotMax())+' yd carry'}</span>`;
 }
 function setMsg(t){S.msg={text:t,t:0};}
@@ -638,6 +702,7 @@ function finishRound(){
   const bx=full?60:30,bc=(full?50:25)+Math.max(0,par-total)*20;
   const ups=addXp(bx);p.coins+=bc;p.rounds++;R.xp+=bx;R.coins+=bc;R.ups+=ups;
   let best=false;if(full&&(p.best[R.course.id]==null||total<p.best[R.course.id])){p.best[R.course.id]=total;best=true;}
+  if(R.tour!=null&&full)tourResult(R,total,par);
   persist();lbSubmit();showCard(R,total,par,best);
 }
 $('#quitBtn').onclick=()=>{if(!S)return;
@@ -771,6 +836,8 @@ function showMenu(){
   <button class="big" id="bShop">Pro shop</button>
   <button class="big" id="bBoards">Leaderboards</button>
   <button class="big" id="bDesign">Course designer</button></div>`;
+  const ct=TOURS.find(tt=>!(p.tour&&p.tour[tt.flag])),bt=document.createElement('button');
+  bt.className='big';bt.innerHTML=`Tours &nbsp;<span class="small">${ct?ct.name+': '+ct.events.filter(e=>p.tour&&p.tour.pos[e.id]<=TOUR_CUT).length+' of '+ct.events.length+' qualified':'all tours complete'}</span>`;bt.onclick=showTour;$('#bPlay').after(bt);
   $('#bBoards').onclick=()=>showBoards('overall');
   preview('#pv',p.look);
   $('#bPlay').onclick=()=>showCourses('play');$('#bGolfer').onclick=showGolfer;$('#bShop').onclick=showShop;$('#bDesign').onclick=()=>showCourses('design');
@@ -803,7 +870,7 @@ function showGolfer(){
   UI.innerHTML=`<div class="panel"><div class="row"><h2 style="margin:0">${esc(p.name)}</h2><span class="sp"></span><button id="gBack">Back</button></div>
   <div class="grid2" style="margin-top:12px"><div><div style="text-align:center"><canvas id="pv" width="170" height="170" style="background:#5db54c;border-radius:12px;border:1px solid var(--line)"></canvas></div>
   <p><span class="tag">Level ${p.level}</span><span class="tag coin">${p.coins} coins</span><span class="tag">${p.rounds} rounds</span></p>${xpBar(p)}
-  <h3>Equipped</h3>${Object.keys(SLOTS).map(s=>`<div class="small"><b style="color:var(--txt)">${eq(s).name}</b> &mdash; ${equipDesc(s,eq(s))}</div>`).join('')}</div>
+  <h3>Equipped</h3>${Object.keys(SLOTS).map(s=>`<div class="small"><b style="color:var(--txt)">${eq(s).brand?eq(s).brand+' ':''}${eq(s).name}</b> &mdash; ${equipDesc(s,eq(s))}</div>`).join('')}</div>
   <div><h3>Stats &mdash; ${p.points} point${p.points===1?'':'s'} to spend</h3>${statsHtml(p,false)}<p class="small">You earn 2 stat points every level. XP comes from finishing holes &mdash; better scores earn more.</p></div></div>
   <div class="row" style="margin-top:16px"><button id="gLook">Change look</button><button id="gShop">Pro shop</button><span class="sp"></span><button class="danger" id="gDel">Delete golfer</button></div></div>`;
   preview('#pv',p.look);bindStats(p,()=>{persist();showGolfer();});
@@ -814,16 +881,16 @@ function showGolfer(){
 function showShop(){
   const p=save.profile;
   UI.innerHTML=`<div class="panel wide"><div class="row"><h2 style="margin:0">Pro shop</h2><span class="tag">Level ${p.level}</span><span class="tag coin">${p.coins} coins</span><span class="sp"></span><button id="sBack">Back</button></div>
-  <p>Better gear unlocks as you level up. Win coins by playing holes.</p>
+  <p>Better gear unlocks as you level up. Halcyon gear needs a Tour Card, and Vanta gear needs a Rookie Tour event win. Win coins by playing holes and tour events.</p>
   ${Object.keys(SLOTS).map(s=>`<h3>${SLOTS[s]}</h3>`+EQUIP[s].map((it,i)=>{const own=p.owned[s].includes(i),on=p.equip[s]===i;
-    const btn=on?'<button disabled>Equipped</button>':own?`<button data-eq="${s}:${i}">Equip</button>`:p.level<it.lvl?`<button disabled>Level ${it.lvl}</button>`:`<button class="primary" data-buy="${s}:${i}" ${p.coins<it.price?'disabled':''}>Buy ${it.price}</button>`;
-    return `<div class="card row" style="${on?'border-color:var(--acc)':''}"><div style="flex:1"><div class="t">${it.name}</div><div class="small">${equipDesc(s,it)}${own?'':` &bull; needs level ${it.lvl}`}</div></div>${btn}</div>`;}).join('')).join('')}</div>`;
+    const btn=on?'<button disabled>Equipped</button>':own?`<button data-eq="${s}:${i}">Equip</button>`:gearLock(it)?`<button disabled>${gearLock(it)}</button>`:`<button class="primary" data-buy="${s}:${i}" ${p.coins<it.price?'disabled':''}>Buy ${it.price}</button>`;
+    return `<div class="card row" style="${on?'border-color:var(--acc)':''}"><div style="flex:1"><div class="t">${it.brand?`<span class="tag">${it.brand}</span>`:''}${it.name}</div><div class="small">${equipDesc(s,it)}${own?'':` &bull; needs level ${it.lvl}${it.req==='card'?' and a Tour Card':it.req==='rookieWin'?' and a Rookie Tour event win':''}`}</div></div>${btn}</div>`;}).join('')).join('')}</div>`;
   $('#sBack').onclick=showMenu;
   $$('[data-eq]',UI).forEach(b=>b.onclick=()=>{const[s,i]=b.dataset.eq.split(':');p.equip[s]=+i;persist();showShop();});
-  $$('[data-buy]',UI).forEach(b=>b.onclick=()=>{const[s,i]=b.dataset.buy.split(':'),it=EQUIP[s][+i];if(p.coins<it.price||p.level<it.lvl)return;p.coins-=it.price;p.owned[s].push(+i);p.equip[s]=+i;persist();showShop();});
+  $$('[data-buy]',UI).forEach(b=>b.onclick=()=>{const[s,i]=b.dataset.buy.split(':'),it=EQUIP[s][+i];if(p.coins<it.price||gearLock(it))return;p.coins-=it.price;p.owned[s].push(+i);p.equip[s]=+i;persist();showShop();});
 }
 const coursePar=c=>c.holes.reduce((a,h)=>a+h.par,0),courseYards=c=>c.holes.reduce((a,h)=>a+holeYards(h),0);
-const allCourses=()=>BUILTIN.concat(save.courses);
+const allCourses=()=>BUILTIN.concat(save.profile&&save.profile.tour&&save.profile.tour.card?ROOKIE:[],save.courses);
 function showCourses(mode){
   const p=save.profile,play=mode==='play',list=play?allCourses():save.courses;
   UI.innerHTML=`<div class="panel"><div class="row"><h2 style="margin:0">${play?'Choose a course':'Course designer'}</h2><span class="sp"></span>${play?'':'<button class="primary" id="cNew">New course</button><button id="cImp">Import</button>'}<button id="cBack">Back</button></div>
@@ -851,15 +918,66 @@ function showCourses(mode){
     toast('Course imported.');showCourses('design');});};
 }
 function showCard(R,total,par,best){
-  const p=save.profile,tbl=(from,to)=>{const ix=R.idxs.filter(i=>i>=from&&i<to);if(!ix.length)return'';const sc=i=>R.scores[R.idxs.indexOf(i)],hp=i=>R.course.holes[i].par;
+  const tr=R.tourRes,p=save.profile,tbl=(from,to)=>{const ix=R.idxs.filter(i=>i>=from&&i<to);if(!ix.length)return'';const sc=i=>R.scores[R.idxs.indexOf(i)],hp=i=>R.course.holes[i].par;
     return `<table class="sc"><tr><th>Hole</th>${ix.map(i=>`<th>${i+1}</th>`).join('')}<th>Tot</th></tr><tr><td>Par</td>${ix.map(i=>`<td>${hp(i)}</td>`).join('')}<td>${ix.reduce((a,i)=>a+hp(i),0)}</td></tr>
     <tr><td>You</td>${ix.map(i=>`<td class="${sc(i)<hp(i)?'under':sc(i)>hp(i)?'over':''}">${sc(i)}</td>`).join('')}<td><b>${ix.reduce((a,i)=>a+sc(i),0)}</b></td></tr></table>`;};
   UI.innerHTML=`<div class="panel"><h2>${esc(R.course.name)} &mdash; round complete</h2>
   <p style="font-size:20px;color:var(--txt)">${esc(p.name)} shot <b>${total}</b> (${fmtRel(total-par)})${best?' &nbsp;<span class="coin">New personal best!</span>':''}</p>
   ${tbl(0,9)}${tbl(9,18)}
+  ${tr?`<div class="card" style="border-color:${tr.q?'var(--good)':'var(--line)'}"><div class="t">${tr.pos===1?'You won the event!':tr.q?`You finished ${ord(tr.pos)} and qualified!`:`You finished ${ord(tr.pos)}. The top ${TOUR_CUT} qualify &mdash; try again.`}</div>${tr.done?`<div class="coin">${tr.done}</div>`:''}
+  <table class="lb">${tr.rows.map((r,i)=>`<tr class="${r.me?'me':''}"><td>${i+1}</td><td>${esc(r.name)}</td><td>${r.score} (${fmtRel(r.score-par)})</td></tr>`).join('')}</table></div>`:''}
   <div class="card"><div class="t">Rewards</div><div class="small">+${R.xp} XP &bull; <span class="coin">+${R.coins} coins</span>${R.ups?` &bull; <span class="under">Gained ${R.ups} level${R.ups>1?'s':''}! Now level ${p.level}</span>`:''}</div>${xpBar(p)}</div>
-  <div class="row"><button id="kGolfer">${p.points?`Spend ${p.points} stat points`:'My golfer'}</button><button id="kShop">Pro shop</button><span class="sp"></span><button class="primary" id="kMenu">Main menu</button></div></div>`;
+  <div class="row"><button id="kGolfer">${p.points?`Spend ${p.points} stat points`:'My golfer'}</button><button id="kShop">Pro shop</button><span class="sp"></span>${tr?'<button id="kTour">Back to tour</button>':''}<button class="primary" id="kMenu">Main menu</button></div></div>`;
+  const kt=$('#kTour');if(kt)kt.onclick=showTour;
   $('#kGolfer').onclick=showGolfer;$('#kShop').onclick=showShop;$('#kMenu').onclick=showMenu;
+}
+
+/* ---------------- tours ----------------
+   Each tour is five 18-hole events in order of difficulty. An event is played against a field of computer
+   golfers whose scores are rolled when the round ends: mean = strokes over par for an average field golfer,
+   sd = spread. Finish in the top TOUR_CUT to qualify and unlock the next event; qualify in all five to
+   complete the tour, which unlocks the next tour. */
+const TOURS=[
+  {name:'Qualifying Tour',flag:'card',prize:[500,200],doneMsg:'Tour Card earned! You qualified in all five events.',
+   blurb:'Five events on the standard courses. Qualify in all five to earn your Tour Card.',
+   events:[{id:'builtin1',mean:20,sd:4},{id:'builtin3',mean:16,sd:4},{id:'builtin2',mean:13,sd:4},{id:'builtin4',mean:10,sd:3.5},{id:'builtin5',mean:7,sd:3.5}]},
+  {name:'Rookie Tour',flag:'rookie',prize:[1000,400],wins:2,doneMsg:'Rookie Tour complete!',
+   blurb:'The same five courses set up harder: about 10% longer, narrower fairways, trees standing in the fairway, and more bunkers and water. The fields are stronger and the prizes are doubled. Complete it by qualifying in all five events, or by winning any two.',
+   events:[{id:'rookie1',mean:13,sd:3.5},{id:'rookie3',mean:11,sd:3.5},{id:'rookie2',mean:9,sd:3.5},{id:'rookie4',mean:7,sd:3},{id:'rookie5',mean:5,sd:3}]}
+];
+const TOUR_FIELD=['Ace Barlow','Mia Fontaine','Rory Finch','Sam Okafor','Lena Brandt','Tomas Vega','Priya Nair','Gus Halloran','Yuki Mori','Dana Whitlock','Otis Greer'];
+const TOUR_CUT=3;
+const tourCourse=e=>BUILTIN.concat(ROOKIE).find(c=>c.id===e.id);
+// a tour is complete with a top-TOUR_CUT finish in every event, or (if the tour sets `wins`) that many different events won
+const tourWins=(tour,t)=>tour.events.filter(e=>t.pos[e.id]===1).length;
+const tourDone=(tour,t)=>tour.events.every(e=>t.pos[e.id]<=TOUR_CUT)||(tour.wins&&tourWins(tour,t)>=tour.wins);
+const ord=n=>n+(n%10===1&&n!==11?'st':n%10===2&&n!==12?'nd':n%10===3&&n!==13?'rd':'th');
+const gauss=()=>(Math.random()+Math.random()+Math.random()+Math.random()-2)/.577;
+function tourResult(R,total,par){
+  const p=save.profile,tour=TOURS[R.tour.t],ev=tour.events[R.tour.e],t=p.tour||(p.tour={pos:{}}),m=R.tour.t+1;
+  const rows=TOUR_FIELD.map((n,i)=>({name:n,score:par+Math.round(ev.mean+(i-5)*.5+ev.sd*gauss())}));
+  rows.push({name:p.name,score:total,me:true});
+  rows.sort((a,b)=>a.score-b.score||(a.me?-1:b.me?1:0)); // the player wins ties
+  const pos=rows.findIndex(r=>r.me)+1,q=pos<=TOUR_CUT;
+  let xp=(pos===1?150:q?60:0)*m,coins=(pos===1?300:q?120:0)*m;
+  if(t.pos[ev.id]==null||pos<t.pos[ev.id])t.pos[ev.id]=pos;
+  let done='';if(!t[tour.flag]&&tourDone(tour,t)){t[tour.flag]=true;done=tour.doneMsg;coins+=tour.prize[0];xp+=tour.prize[1];}
+  if(xp){R.ups+=addXp(xp);R.xp+=xp;}p.coins+=coins;R.coins+=coins;
+  R.tourRes={rows,pos,q,done};
+}
+function showTour(){
+  const p=save.profile,t=p.tour||{pos:{}},qd=e=>t.pos[e.id]<=TOUR_CUT,last=TOURS[TOURS.length-1];
+  UI.innerHTML=`<div class="panel"><div class="row"><h2 style="margin:0">Tours</h2><span class="sp"></span><button id="tBack">Back</button></div>
+  <p>Each event is 18 holes against a field of ${TOUR_FIELD.length} other golfers. Finish in the top ${TOUR_CUT} to qualify and unlock the next event. Winning an event pays a bigger prize.</p>
+  ${TOURS.map((tour,ti)=>{const unlocked=ti===0||t[TOURS[ti-1].flag],n=tour.events.filter(qd).length;
+    return `<h3>${tour.name} &mdash; ${t[tour.flag]?'complete':unlocked?n+' of '+tour.events.length+' qualified'+(tour.wins?', '+tourWins(tour,t)+' of '+tour.wins+' wins':''):'locked'}</h3><p class="small">${tour.blurb}</p>`+
+    (!unlocked?`<div class="card"><div class="small">Locked. Qualify in all five ${TOURS[ti-1].name} events first.</div></div>`:
+    tour.events.map((e,i)=>{const c=tourCourse(e),open=i===0||qd(tour.events[i-1]),ps=t.pos[e.id];
+      return `<div class="card row" style="${qd(e)?'border-color:var(--good)':''}"><div style="flex:1;min-width:180px"><div class="t">Event ${i+1}: ${esc(c.name)}</div><div class="small">Par ${coursePar(c)} &bull; ${courseYards(c)} yd &bull; ${ps?`Best finish: <b>${ord(ps)}</b>${qd(e)?' &mdash; qualified':''}`:open?'Not played yet':'Locked'}</div></div><button data-vh="${ti}:${i}">Holes</button>${open?`<button class="${qd(e)?'':'primary'}" data-ev="${ti}:${i}">${qd(e)?'Play again':'Play event'}</button>`:`<button disabled>Top ${TOUR_CUT} in event ${i} to unlock</button>`}</div>`;}).join(''));}).join('')}
+  <h3>Pro Tour &mdash; ${t[last.flag]?'coming soon':'locked'}</h3><div class="card"><div class="small">${t[last.flag]?'You have completed the Rookie Tour. Pro Tour courses will appear here.':'Complete the Rookie Tour to unlock.'}</div></div></div>`;
+  $('#tBack').onclick=showMenu;
+  $$('[data-ev]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.ev.split(':').map(Number);startRound(tourCourse(TOURS[ti].events[i]),[...Array(18).keys()],{tour:{t:ti,e:i}});});
+  $$('[data-vh]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.vh.split(':').map(Number);showHoles(tourCourse(TOURS[ti].events[i]),0,showTour);});
 }
 
 /* ---------------- online leaderboards (Supabase; see supabase-setup.sql) ---------------- */
@@ -901,7 +1019,7 @@ function showBoards(tab){
 }
 
 // hole-by-hole overview of a course (tee on the left, green on the right)
-function showHoles(course,i){
+function showHoles(course,i,back){
   const h=course.holes[i];
   UI.innerHTML=`<div class="panel wide"><div class="row"><h2 style="margin:0">${esc(course.name)} &mdash; Hole ${i+1}${h.name?': '+esc(h.name):''}</h2><span class="sp"></span><button id="vPrev" ${i<1?'disabled':''}>&#9664; Prev</button><button id="vNext" ${i>16?'disabled':''}>Next &#9654;</button><button id="vBack">Back</button></div>
   <p><span class="tag">Par ${h.par}</span><span class="tag">${holeYards(h)} yd</span><span class="tag">Green: ${h.slope&&h.slope.str?['','gentle','medium','steep'][h.slope.str]+' slope toward '+DIRS[h.slope.dir].toLowerCase():'flat'}</span></p>
@@ -912,8 +1030,8 @@ function showHoles(course,i){
   const px=cw-h.pin.y*PPY*k,py=h.pin.x*PPY*k;
   g.fillStyle='#111';g.beginPath();g.arc(px,py,4,0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=3;g.beginPath();g.moveTo(px,py);g.lineTo(px,py-34);g.stroke();
   g.fillStyle='#e63946';g.beginPath();g.moveTo(px,py-34);g.lineTo(px+18,py-27);g.lineTo(px,py-20);g.fill();
-  $('#vPrev').onclick=()=>showHoles(course,i-1);$('#vNext').onclick=()=>showHoles(course,i+1);$('#vBack').onclick=()=>save.profile?showCourses('play'):showMenu();
-  const vp=$('#vPlay');if(vp)vp.onclick=()=>startRound(course,[i],{practice:true,onDone:()=>showHoles(course,i)});
+  $('#vPrev').onclick=()=>showHoles(course,i-1,back);$('#vNext').onclick=()=>showHoles(course,i+1,back);$('#vBack').onclick=()=>back?back():save.profile?showCourses('play'):showMenu();
+  const vp=$('#vPlay');if(vp)vp.onclick=()=>startRound(course,[i],{practice:true,onDone:()=>showHoles(course,i,back)});
 }
 
 /* ---------------- course designer ---------------- */
