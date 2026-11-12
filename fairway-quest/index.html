@@ -50,7 +50,11 @@ table.sc th{background:#0f2716;color:var(--dim);font-weight:600}
 #hud>div{position:absolute;background:rgba(10,30,16,.82);border:1px solid var(--line);border-radius:10px;padding:8px 12px;pointer-events:auto}
 #hud #hudQuit{left:8px;top:8px;padding:0;border:none;background:none}
 #hudQuit button{padding:4px 10px;font-size:12px;background:rgba(10,30,16,.82)}
-#hudClub{left:50%;bottom:74px;transform:translateX(-50%);display:flex;flex-direction:column;gap:5px;width:max-content;max-width:calc(100vw - 12px)}
+#hud #hudClub{left:50%;bottom:150px;transform:translateX(-50%);display:flex;flex-direction:column;gap:3px;width:max-content;max-width:calc(100vw - 12px);padding:5px 10px}
+#hudClub button{padding:3px 12px;font-size:13px}
+#hud #hudClub .nm{min-width:170px}#hud #hudClub .nm b{display:inline;font-size:15px;margin-right:6px}
+#hud #hudSwing{left:50%;bottom:12px;transform:translateX(-50%);padding:0;border:none;background:none}
+#hud #swingBtn{width:min(352px,calc(100vw - 16px));height:62px;font-size:24px;letter-spacing:1px;border-width:2px;box-shadow:0 4px 14px rgba(0,0,0,.5);white-space:nowrap}
 #hudTxt{font-size:12px;line-height:1.4;color:var(--dim);text-align:center}
 #hudTxt b{color:var(--acc)}
 .clubRow{display:flex;gap:10px;align-items:center;justify-content:center}
@@ -62,12 +66,11 @@ table.lb td:last-child,table.lb th:last-child{text-align:right}
 table.lb tr.me td{background:#2a6139;color:var(--txt);font-weight:700}
 #hudClub .nm{min-width:150px;text-align:center}
 #hudClub .nm b{display:block;font-size:17px}
-#swingBtn{min-width:104px;padding:10px 12px;white-space:nowrap}
 canvas#cv{touch-action:none}
 html{touch-action:manipulation}
 @media(max-width:1000px){#hudHelp{display:none}}
 @media(max-width:700px){
-  #hud #hudClub{padding:6px 8px}.clubRow{gap:6px}#hudTxt{font-size:11px}#hudClub .nm{min-width:100px}#hudClub .nm b{font-size:14px}#hudClub button{padding:9px 11px}
+  #hudTxt{font-size:11px}#hud #hudClub button{padding:6px 14px}
   .card .row>div:first-child{min-width:100%}
   #ui{padding:10px 8px}.panel{padding:16px 14px}h1{font-size:32px}h2{font-size:20px}
   #ui #ed{flex-direction:column;height:auto}#ui #edSide{width:100%;overflow:visible}#ui #edMain{order:-1;position:sticky;top:0;z-index:2;height:50vh;flex:none;padding:8px}
@@ -90,7 +93,8 @@ html{touch-action:manipulation}
 <canvas id="cv"></canvas>
 <div id="hud" class="hidden">
   <div id="hudQuit"><button id="quitBtn">&#10005; Quit</button></div>
-  <div id="hudClub"><div id="hudTxt"></div><div class="clubRow"><button id="clubPrev" title="Q">&#9664;</button><div class="nm" id="clubName"></div><button id="clubNext" title="E">&#9654;</button><button id="swingBtn" class="primary">Swing</button></div></div>
+  <div id="hudClub"><div id="hudTxt"></div><div class="clubRow"><button id="clubPrev" title="Q">&#9664;</button><div class="nm" id="clubName"></div><button id="clubNext" title="E">&#9654;</button></div></div>
+  <div id="hudSwing"><button id="swingBtn" class="primary">Swing</button></div>
   <div id="hudHelp">Move mouse to aim &bull; Click / Space: start swing, set power, set accuracy &bull; Q / E or wheel: change club &bull; Esc: cancel swing</div>
 </div>
 <div id="ui"></div>
@@ -533,7 +537,7 @@ function resize(){const d=window.devicePixelRatio||1;VW=innerWidth;VH=innerHeigh
 addEventListener('resize',resize);resize();
 let S=null; // the active round, or null when in menus
 const mouse={x:0,y:0,moved:false};
-const CAM_UP=60;
+const CAM_UP=100; // how far above screen centre the view sits, to clear the controls at the bottom
 let isTouch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
 
 function startRound(course,idxs,opt){
@@ -691,7 +695,7 @@ function camTarget(){
   const b=S.ball,h=S.h;
   if(S.cam&&S.state!=='aim'&&S.state!=='power'&&S.state!=='acc')return{x:b.x,y:b.y,s:S.cam.s};
   const dp=distPin(),m=Math.min(dp,shotMax()*1.1),a=Math.atan2(h.pin.y-b.y,h.pin.x-b.x);
-  return{x:b.x+Math.cos(a)*m/2,y:b.y+Math.sin(a)*m/2,s:clamp(Math.min(VH-140,VW)*.78/(m*1.3+14),1.4,16)};
+  return{x:b.x+Math.cos(a)*m/2,y:b.y+Math.sin(a)*m/2,s:clamp(Math.min(VH-230,VW)*.78/(m*1.3+14),1.4,16)};
 }
 function draw(dt){
   const h=S.h,b=S.ball,tg=camTarget();
@@ -731,16 +735,16 @@ function draw(dt){
     ctx.fillStyle='#e63946';ctx.beginPath();ctx.arc(mx+h.pin.x*ms,my+h.pin.y*ms,3,0,7);ctx.fill();
     ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.beginPath();ctx.arc(mx+b.x*ms,my+b.y*ms,3,0,7);ctx.fill();ctx.stroke();}
   // swing meter
-  const mw=Math.min(340,VW-28),mx=VW/2-mw/2,my=VH-58,tap=isTouch?'Tap':'Click';
+  const mw=Math.min(340,VW-28),mx=VW/2-mw/2,my=VH-134,tap=isTouch?'Tap':'Click';
   const lbl=S.state==='aim'?'Swing':S.state==='power'?'Set power':S.state==='acc'?'Hit!':'...',sb=$('#swingBtn');if(sb.textContent!==lbl)sb.textContent=lbl;
-  ctx.fillStyle='rgba(10,30,16,.9)';ctx.fillRect(mx-6,my-6,mw+12,46);
-  ctx.fillStyle='#0f2716';ctx.fillRect(mx,my,mw,18);
+  ctx.fillStyle='rgba(10,30,16,.9)';ctx.fillRect(mx-6,my-6,mw+12,60);
+  ctx.fillStyle='#0f2716';ctx.fillRect(mx,my,mw,26);
   const gr=ctx.createLinearGradient(mx,0,mx+mw,0);gr.addColorStop(0,'#7fe08a');gr.addColorStop(.7,'#f4c542');gr.addColorStop(1,'#ff6b5b');
-  ctx.fillStyle=gr;ctx.fillRect(mx,my,mw*(aiming?S.power:0),18);
-  ctx.fillStyle='rgba(255,255,255,.35)';for(let i=1;i<4;i++)ctx.fillRect(mx+mw*i/4,my,1,18);
-  ctx.fillStyle='#0f2716';ctx.fillRect(mx,my+24,mw,10);ctx.fillStyle='#7fe08a';ctx.fillRect(mx+mw*.45,my+24,mw*.1,10);
-  if(S.state==='acc'){ctx.fillStyle='#fff';ctx.fillRect(mx+mw/2+S.accv*mw/2-2,my+21,4,16);}
-  ctx.fillStyle='#fff';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='bold 11px Segoe UI,sans-serif';ctx.textAlign='left';ctx.fillText(S.state==='aim'?(isTouch?'Drag on the course to aim, then tap Swing':'Click to swing'):S.state==='power'?tap+' to set POWER  '+Math.round(S.power*100)+'%':S.state==='acc'?tap+' in the green zone for ACCURACY':'',mx+6,my+13);ctx.shadowBlur=0;
+  ctx.fillStyle=gr;ctx.fillRect(mx,my,mw*(aiming?S.power:0),26);
+  ctx.fillStyle='rgba(255,255,255,.35)';for(let i=1;i<4;i++)ctx.fillRect(mx+mw*i/4,my,1,26);
+  ctx.fillStyle='#0f2716';ctx.fillRect(mx,my+32,mw,16);ctx.fillStyle='#7fe08a';ctx.fillRect(mx+mw*.45,my+32,mw*.1,16);
+  if(S.state==='acc'){ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.fillRect(mx+mw/2+S.accv*mw/2-3,my+28,6,24);ctx.strokeRect(mx+mw/2+S.accv*mw/2-3,my+28,6,24);}
+  ctx.fillStyle='#fff';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='bold 13px Segoe UI,sans-serif';ctx.textAlign='left';ctx.fillText(S.state==='aim'?(isTouch?'Drag on the course to aim, then tap Swing':'Click to swing'):S.state==='power'?tap+' to set POWER  '+Math.round(S.power*100)+'%':S.state==='acc'?tap+' in the green zone for ACCURACY':'',mx+7,my+18);ctx.shadowBlur=0;
   // message
   if(S.msg){const a=clamp(2.4-S.msg.t,0,1)*clamp(S.msg.t*6,0,1);ctx.globalAlpha=a;ctx.font='bold 44px Segoe UI,sans-serif';ctx.textAlign='center';ctx.lineWidth=7;ctx.strokeStyle='rgba(0,0,0,.75)';ctx.fillStyle='#f4c542';
     ctx.strokeText(S.msg.text,VW/2,VH*.24);ctx.fillText(S.msg.text,VW/2,VH*.24);ctx.globalAlpha=1;}
