@@ -137,7 +137,23 @@ const TROPIC={
   s:{name:'Sand',  col:'#fbf1d0',decel:70,dist:.7, dev:1.5, roll:.08},
   w:{name:'Ocean', col:'#27b3c9',decel:99,dist:1,  dev:1,   roll:0}
 };
-const THEME_TER={desert:DESERT,tropical:TROPIC};
+// mountain courses: pine forest and rock, grey scree instead of sand, and stronger wind
+const MOUNTAIN={
+  r:{name:'Alpine rough',col:'#4b8b5e',decel:32,dist:.83,dev:1.4,roll:.45},
+  t:{name:'Pines',col:'#2c5b45',decel:45,dist:.6,dev:1.7,roll:.3},
+  s:{name:'Scree',col:'#d2ccba',decel:70,dist:.7,dev:1.5,roll:.08},
+  w:{name:'Lake',col:'#2f74c0',decel:99,dist:1,dev:1,roll:0}
+};
+// fantasy courses: purple moss, teal fairways, mushrooms and crystals, and lava where the water would be
+const FANTASY={
+  r:{name:'Moss',col:'#6a4d9e',decel:30,dist:.85,dev:1.35,roll:.5},
+  f:Object.assign({},TER.f,{col:'#35c4a4'}),e:Object.assign({},TER.e,{col:'#5fe0c0'}),g:Object.assign({},TER.g,{col:'#a8f7de'}),
+  t:{name:'Mushrooms',col:'#4b3380',decel:45,dist:.6,dev:1.7,roll:.3},
+  s:{name:'Stardust',col:'#f7bfe8',decel:70,dist:.7,dev:1.5,roll:.08},
+  w:{name:'Lava',col:'#ff6a1f',decel:99,dist:1,dev:1,roll:0}
+};
+const THEME_TER={desert:DESERT,tropical:TROPIC,mountain:MOUNTAIN,fantasy:FANTASY};
+const waterMsg=h=>{const n=terOf(h,'w').name;return n==='Water'?'Water hazard!':'In the '+n.toLowerCase()+'!';};
 const terOf=(h,ch)=>(h&&THEME_TER[h.theme]&&THEME_TER[h.theme][ch])||TER[ch];
 const PAINTABLE=['r','f','g','s','w','t','e'];
 const CLUBS=[
@@ -297,7 +313,7 @@ function genHole(par,R,opt){
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){if(g[y][x]!=='r')continue;let m=1e9;
     for(let i=0;i<path.length;i+=2){const q=path[i],dd=(q.x-x-.5)**2+(q.y-y-.5)**2;if(dd<m)m=dd;}m=Math.sqrt(m);
     const thr=9+1.3*(Math.sin(x*.7+p1)+Math.sin(y*.45+p2));
-    if(opt.theme==='desert'?((m>thr-3&&R()<.2)||(m>4&&R()<.04)):(m>thr||((x<1||x>cols-2)&&R()<.7)||(m>5&&R()<.05)))g[y][x]='t';}
+    if((opt.theme==='desert'||opt.theme==='fantasy')?((m>thr-3&&R()<.2)||(m>4&&R()<.04)):(m>thr||((x<1||x>cols-2)&&R()<.7)||(m>5&&R()<.05)))g[y][x]='t';}
   return{par,cols,rows:g.map(r=>r.join('')),tee:{x:tx*TILE,y:ty*TILE},
     pin:{x:(grn.x+(R()-.5)*2)*TILE,y:(grn.y+(R()-.5)*2)*TILE},slope:{dir:Math.floor(R()*8),str:Math.floor(R()*3)},theme:opt.theme};
 }
@@ -334,7 +350,7 @@ function buildHole(s){
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const ex=(x+.5-grn.x)/grx,ey=(y+.5-grn.y)/gry,th=Math.atan2(ey,ex),rr=1+.12*Math.sin(3*th+gph);if(ex*ex+ey*ey<=rr*rr)g[y][x]='g';}
   const tx=Math.floor(pts[0].x),ty=teeRow;
   for(let y=ty-1;y<=ty;y++)for(let x=tx-1;x<=tx;x++)g[y][x]='e';
-  const D=s.theme==='desert',p1=R()*6.28,p2=R()*6.28,gap=(s.gap||(D?30:TP?36:45))/TILE,clear=(s.clear||[]).map(q=>({c:P(q[0],q[1]),r:q[2]/TILE}));
+  const D=s.theme==='desert',FA=s.theme==='fantasy',p1=R()*6.28,p2=R()*6.28,gap=(s.gap||(D?30:FA?34:TP?36:45))/TILE,clear=(s.clear||[]).map(q=>({c:P(q[0],q[1]),r:q[2]/TILE}));
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){if(g[y][x]!=='r')continue;let m=1e9;
     for(let i=0;i<path.length;i+=2){const q=path[i],dd=(q.x-x-.5)**2+(q.y-y-.5)**2;if(dd<m)m=dd;}m=Math.sqrt(m);
     if(clear.some(q=>Math.hypot(q.c.x-x-.5,q.c.y-y-.5)<q.r))continue;
@@ -346,10 +362,10 @@ function buildHole(s){
       if(sea){if(e>2.2)g[y][x]='w';else if(e>.4)g[y][x]='s';else if(m>4.5&&R()<(e>-2?.3:.05))g[y][x]='t';}
       else if(e>0?R()<.8:(m>4.5&&R()<.05))g[y][x]='t';
       continue;}
-    if(D?((far&&R()<.2)||(m>4.5&&R()<.035)):(far||((x<1||x>cols-2)&&R()<.7)||(m>5&&R()<.04)))g[y][x]='t';}
+    if((D||FA)?((far&&R()<(FA?.45:.2))||(m>4.5&&R()<.035)):(far||((x<1||x>cols-2)&&R()<.7)||(m>5&&R()<.04)))g[y][x]='t';}
   patch(s.trees,'t','r');patch(s.fwTrees,'t','rf');
   const pin=s.pin||[0,0];
-  return{par:s.par,cols,rows:g.map(r=>r.join('')),tee:{x:tx*TILE,y:ty*TILE},pin:{x:grn.x*TILE+pin[0],y:grn.y*TILE-pin[1]},slope:{dir:s.slopeDir||0,str:s.slope||0},name:s.name,note:s.note,theme:s.theme};
+  return{par:s.par,cols,rows:g.map(r=>r.join('')),tee:{x:tx*TILE,y:ty*TILE},pin:{x:grn.x*TILE+pin[0],y:grn.y*TILE-pin[1]},slope:{dir:s.slopeDir||0,str:s.slope||0},name:s.name,note:s.note,theme:s.theme,wind:s.wind};
 }
 const DESIGNS=[
   {name:'First Light',note:'A gentle opener that bends right. Favour the left half of the fairway off the tee: the corner bunker catches drives that cut too much, and the green opens up from the left.',
@@ -478,11 +494,13 @@ BUILTIN.splice(2,0,{id:'builtin5',builtin:true,theme:'tropical',name:'Coral Cay'
 /* ---------------- Rookie Tour set-ups ----------------
    The same five courses, made harder: about 10% longer, narrower fairways, trees (or cactus / palms)
    standing in the fairway, extra bunkers, and a pond on holes that had no water. */
-function toughSpec(s,i){
+// lvl 1 = Rookie Tour, lvl 2 = Pro Tour (narrower still, with one more bunker and one more fairway tree per hole)
+function toughSpec(s,i,lvl){
+  lvl=lvl||1;const pro=lvl>1;
   const R=rng(7000+i*31+s.path.length*13),K=1.1,up=v=>Math.round(v*K),sc=l=>(l||[]).map(q=>[q[0],up(q[1]),q[2],q[3]]);
-  const dGap=s.theme==='desert'?30:s.theme==='tropical'?36:45,fw=(s.fw||16)-2;
+  const dGap={desert:30,tropical:36,fantasy:34}[s.theme]||45,fw=Math.max(11,(s.fw||16)-(pro?3:2));
   const t=Object.assign({},s,{path:s.path.map(p=>[p[0],up(p[1])]),sand:sc(s.sand),water:sc(s.water),trees:sc(s.trees),fairway:sc(s.fairway),clear:sc(s.clear),
-    fwTrees:[],fw,gap:Math.max(24,(s.gap||dGap)-6),seed:(s.seed||7)+500});
+    fwTrees:[],fw,gap:Math.max(24,(s.gap||dGap)-(pro?8:6)),seed:(s.seed||7)+500});
   if(s.fwStart!=null)t.fwStart=up(s.fwStart);
   // point a fraction f of the way along the centre line, with the sideways direction (nx, nu)
   const P=t.path,segs=[];let L=0;for(let k=0;k<P.length-1;k++){const l=Math.hypot(P[k+1][0]-P[k][0],P[k+1][1]-P[k][1]);segs.push(l);L+=l;}
@@ -490,11 +508,11 @@ function toughSpec(s,i){
     return{x:lerp(a[0],b[0],q),u:lerp(a[1],b[1],q),nx:du/l,nu:-dx/l};};
   const side=()=>R()<.5?-1:1,cx=v=>clamp(v,14,186),end=P[P.length-1],gr=s.green||[15,14];
   // extra greenside bunkers
-  for(let n=s.par===3?2:1,k=0;k<n;k++){const a=R()*6.28;t.sand.push([cx(end[0]+Math.cos(a)*(gr[0]+9)),end[1]+Math.sin(a)*(gr[1]+9),7,7]);}
+  for(let n=(s.par===3?2:1)+(pro?1:0),k=0;k<n;k++){const a=R()*6.28;t.sand.push([cx(end[0]+Math.cos(a)*(gr[0]+9)),end[1]+Math.sin(a)*(gr[1]+9),7,7]);}
   if(s.par===3){const p=at(.62),sd=side();t.fwTrees.push([cx(p.x+p.nx*sd*13),p.u+p.nu*sd*13,5,6]);}
   else{
-    for(let k=0;k<2;k++){const p=at(.3+k*.25+R()*.15),sd=side(),o=fw+8;t.sand.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,8,11]);}
-    for(let k=0;k<s.par-3;k++){const p=at(.46+k*.22+R()*.08),sd=side(),o=4+R()*5;t.fwTrees.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,5,6]);}
+    for(let k=0,n=pro?3:2;k<n;k++){const p=at(pro?.25+k*.2+R()*.12:.3+k*.25+R()*.15),sd=side(),o=fw+8;t.sand.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,8,11]);}
+    for(let k=0,n=s.par-3+(pro?1:0);k<n;k++){const p=at(pro?.4+k*.18+R()*.08:.46+k*.22+R()*.08),sd=side(),o=4+R()*5;t.fwTrees.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,5,6]);}
     if(!(s.water&&s.water.length)&&s.theme!=='tropical'){const p=at(.36+R()*.36),sd=side(),r=13+R()*4,o=fw+r-1;t.water.push([cx(p.x+p.nx*sd*o),p.u+p.nu*sd*o,r,r*1.35]);}
   }
   return t;
@@ -508,6 +526,82 @@ const ROOKIE=[
   {id:'rookie5',builtin:true,rookie:true,theme:'tropical',name:'Coral Cay (Rookie)',desc:ROOKIE_DESC,holes:TROPIC_DESIGNS.map((s,i)=>buildHole(toughSpec(Object.assign({theme:'tropical',seed:900+i*17},s),i)))}
 ];
 
+/* ---------------- Pro Tour courses ----------------
+   Three new hand-laid-out courses. Each hole below is the base design; toughSpec(…, 2) then lengthens it
+   about 10%, narrows it, and adds the extra bunkers, fairway trees and ponds. */
+const HS=(name,par,path,o)=>Object.assign({name,par,path},o||{});
+const MOUNTAIN_DESIGNS=[
+  HS('Trailhead',4,[[100,0],[96,190],[108,385]]),
+  HS('Switchback',4,[[60,0],[64,150],[120,240],[135,400]],{note:'A sharp turn right halfway up. Cutting the corner means carrying the pines.'}),
+  HS('Cliffside',3,[[90,0],[112,175]],{fwStart:150,water:[[72,166,14,20]]}),
+  HS('Timberline',5,[[130,0],[126,180],[80,310],[70,430],[100,540]]),
+  HS('Boulder Run',4,[[105,0],[100,200],[90,395]],{fw:14}),
+  HS('Glacier Lake',4,[[70,0],[76,190],[110,300],[120,420]],{water:[[152,330,18,40]],note:'The lake runs all down the right side of the approach.'}),
+  HS('The Ledge',3,[[110,0],[95,200]],{fwStart:170,green:[14,13]}),
+  HS('Avalanche',4,[[140,0],[136,170],[98,280],[70,410]]),
+  HS('Summit',5,[[95,0],[102,200],[88,390],[104,555]],{water:[[98,350,36,9]],note:'A mountain stream cuts across the fairway. Lay up or carry it.'}),
+  HS('Pine Gap',4,[[100,0],[104,210],[98,430]],{fw:13,gap:34}),
+  HS('Echo Bowl',3,[[100,0],[100,160]],{fwStart:135,sand:[[78,158,7,11],[122,158,7,11],[100,180,11,5]]}),
+  HS('Ridgeback',4,[[55,0],[60,190],[105,300],[140,425]]),
+  HS('Thin Air',5,[[150,0],[146,190],[104,320],[70,440],[66,550]]),
+  HS('Goat Track',4,[[90,0],[96,150],[70,250],[100,370]],{fw:14,note:'An S-bend through the trees. Position beats power.'}),
+  HS('Stormfront',4,[[120,0],[114,220],[96,440]]),
+  HS('Icefall',3,[[95,0],[108,185]],{fwStart:160,water:[[100,95,30,16]]}),
+  HS('Long Descent',5,[[70,0],[74,190],[112,330],[126,450],[104,560]]),
+  HS("Eagle's Nest",4,[[100,0],[98,210],[108,435]],{water:[[146,420,13,22],[72,425,11,18]],note:'The finisher: lakes on both sides of the green.'})
+];
+const FANTASY_DESIGNS=[
+  HS('Awakening',4,[[100,0],[104,185],[96,375]]),
+  HS("Dragon's Tail",4,[[135,0],[130,160],[84,250],[66,400]],{water:[[112,205,13,16]],note:'Lava pools inside the bend. Go the long way round, or over it.'}),
+  HS('Wishing Stone',3,[[100,0],[100,150]],{fwStart:300,green:[15,14],water:[[100,150,34,32]],note:'An island green in a lake of lava.'}),
+  HS('Rainbow Road',5,[[60,0],[66,170],[118,290],[130,410],[98,535]]),
+  HS('Toadstool Lane',4,[[100,0],[96,190],[104,385]],{fw:13,trees:[[76,200,8,14],[126,260,8,14]]}),
+  HS('Molten Mile',4,[[80,0],[86,210],[104,430]],{water:[[92,70,40,12],[142,330,14,30]],note:'Carry the lava river off the tee, then keep left of the second flow.'}),
+  HS('Crystal Spire',3,[[112,0],[92,195]],{fwStart:165}),
+  HS("Wizard's Elbow",4,[[62,0],[66,170],[112,270],[140,400]]),
+  HS('Trial by Fire',5,[[100,0],[94,190],[108,370],[98,550]],{water:[[100,300,36,10],[100,440,36,10]],note:'Two rivers of lava cross the fairway. Three careful shots.'}),
+  HS('Moonpath',4,[[140,0],[136,185],[100,295],[72,410]]),
+  HS('Fairy Ring',3,[[100,0],[100,145]],{fwStart:300,green:[14,13],sand:[[78,143,7,11],[122,143,7,11],[100,123,11,5],[100,166,11,5]]}),
+  HS('Phoenix Rise',4,[[75,0],[80,200],[104,320],[110,430]],{water:[[58,300,14,24]]}),
+  HS('Leviathan',5,[[125,0],[120,185],[90,335],[78,520]],{water:[[62,265,20,28]]}),
+  HS('Pixie Dust',4,[[100,0],[104,180],[96,360]],{fw:13,green:[13,13]}),
+  HS('Shadow Pass',4,[[56,0],[60,205],[102,325],[136,450]]),
+  HS('Ember Crossing',3,[[95,0],[108,180]],{fwStart:152,green:[15,15],water:[[100,95,32,18]]}),
+  HS('Starfall',5,[[150,0],[146,190],[106,320],[72,435],[68,550]]),
+  HS('The Throne',4,[[95,0],[98,205],[106,425]],{water:[[144,410,13,24],[70,415,12,20]],note:'Lava on both sides of the final green.'})
+];
+// Five Realms: the setting changes every hole, in this order
+const REALM_THEMES=[undefined,'desert','tropical','mountain','fantasy'];
+const REALMS_DESIGNS=[
+  HS('Old Country',4,[[100,0],[96,195],[106,390]]),
+  HS('Dust Devil',4,[[130,0],[126,170],[90,270],[66,405]]),
+  HS('Castaway Key',3,[[100,0],[100,165]],{fwStart:135,water:[[100,88,30,16]]}),
+  HS('High Pass',5,[[65,0],[70,180],[114,305],[128,425],[104,540]]),
+  HS('Spellbound',4,[[100,0],[104,190],[94,385]],{water:[[136,300,14,26]]}),
+  HS('Willow Bend',4,[[70,0],[74,180],[110,290],[124,420]],{water:[[152,320,16,34]]}),
+  HS('Mirage Flat',3,[[108,0],[94,200]],{fwStart:165,sand:[[100,150,26,8]]}),
+  HS('Riptide',4,[[72,0],[74,170],[104,275],[128,395]],{coast:'right'}),
+  HS('Skyline',5,[[100,0],[94,195],[108,385],[98,555]],{water:[[100,340,36,9]]}),
+  HS('Hex',4,[[138,0],[134,180],[98,290],[72,405]]),
+  HS('Thimble',3,[[100,0],[98,140]],{fwStart:118,green:[12,12],sand:[[80,138,7,10],[116,138,7,10],[98,158,10,5],[98,120,10,5]],note:'The smallest green on tour, wrapped in sand.'}),
+  HS('Scorched Earth',4,[[76,0],[80,200],[104,315],[108,430]]),
+  HS('Shark Bay',5,[[125,0],[120,185],[92,330],[84,515]],{water:[[96,300,34,10]]}),
+  HS('Knife Edge',4,[[100,0],[104,185],[96,370]],{fw:13,gap:32}),
+  HS('Nightmare',4,[[58,0],[62,205],[102,325],[134,452]],{water:[[92,150,12,16]]}),
+  HS('Reflection',3,[[94,0],[106,185]],{fwStart:158,water:[[100,95,30,18]]}),
+  HS('Endless Sands',5,[[148,0],[144,190],[106,320],[74,435],[70,555]]),
+  HS("Journey's End",4,[[95,0],[97,205],[105,425]],{gap:30,water:[[140,410,13,22],[68,414,12,20]],note:'The last hole of the tour plays out to a point in the ocean.'})
+];
+const proHoles=(list,seed,fix)=>list.map((s,i)=>buildHole(toughSpec(Object.assign({seed:seed+i*19,slope:1+i%3,slopeDir:(i*3)%8},fix(i),s),i,2)));
+const PRO=[
+  {id:'pro1',builtin:true,pro:true,theme:'mountain',name:"Eagle's Crest",desc:'Pro Tour. A windy mountain course of pines, rock and steep greens.',
+   holes:proHoles(MOUNTAIN_DESIGNS,2100,()=>({theme:'mountain',wind:32}))},
+  {id:'pro2',builtin:true,pro:true,theme:'fantasy',name:'Mystic Glade',desc:'Pro Tour. Giant mushrooms, crystals and rivers of lava.',
+   holes:proHoles(FANTASY_DESIGNS,3300,()=>({theme:'fantasy'}))},
+  {id:'pro3',builtin:true,pro:true,name:'Five Realms',desc:'Pro Tour finale. Every hole is a different world: parkland, desert, island, mountain and fantasy.',
+   holes:proHoles(REALMS_DESIGNS,4700,i=>{const th=REALM_THEMES[i%5];return th==='mountain'?{theme:th,wind:32}:{theme:th};})}
+];
+
 /* ---------------- rendering ---------------- */
 function holeBitmap(h){
   const tp=TILE*PPY,cols=h.cols,n=h.rows.length,W=cols*tp,H=n*tp;
@@ -515,10 +609,11 @@ function holeBitmap(h){
   const tc=document.createElement('canvas');tc.width=W;tc.height=H;const t=tc.getContext('2d');
   const T=(x,y)=>(y<0||y>=n||x<0||x>=cols)?null:h.rows[y][x];
   const R=rng(cols*131+n*7+h.rows[Math.min(8,n-1)].length);
-  const D=h.theme==='desert',TR=h.theme==='tropical';
+  const D=h.theme==='desert',TR=h.theme==='tropical',MT=h.theme==='mountain',FA=h.theme==='fantasy';
   m.fillStyle=terOf(h,'r').col;m.fillRect(0,0,W,H);
   if(D){for(let i=0;i<W*H/200;i++){m.fillStyle=R()<.5?'rgba(120,70,20,.16)':'rgba(255,240,200,.16)';m.fillRect(R()*W,R()*H,3,3);}
     for(let i=0;i<W*H/7000;i++){const x=R()*W,y=R()*H,r=3+R()*4;m.fillStyle='rgba(60,40,10,.25)';m.beginPath();m.arc(x+2,y+3,r,0,7);m.fill();m.fillStyle=R()<.5?'#8c9a4e':'#a59a5a';m.beginPath();m.arc(x,y,r,0,7);m.fill();}}
+  else if(FA)for(let i=0;i<W*H/350;i++){m.fillStyle=R()<.5?'rgba(255,255,255,.2)':'rgba(30,10,60,.22)';m.fillRect(R()*W,R()*H,2,2);}
   else for(let i=0;i<W*H/260;i++){m.fillStyle=R()<.5?'rgba(0,40,0,.13)':'rgba(190,255,150,.08)';const x=R()*W,y=R()*H;m.fillRect(x,y,2,5+R()*4);}
   const rad=tp*.5;
   const fillet=(cx,cy,sx,sy)=>{t.beginPath();t.moveTo(cx,cy);t.lineTo(cx+rad*sx,cy);t.quadraticCurveTo(cx,cy,cx,cy+rad*sy);t.closePath();t.fill();};
@@ -534,12 +629,13 @@ function holeBitmap(h){
     if(deco){t.globalCompositeOperation='source-atop';deco(t);}
     m.save();m.shadowColor=shadow;m.shadowBlur=blur;m.drawImage(tc,0,0);m.restore();
   }
-  layer('t',D?'#c8935a':TR?'#2a8f48':'#2c6a31','rgba(0,0,0,0)',0);
-  layer('feg',TER.f.col,'rgba(20,60,20,.7)',6,g=>{g.fillStyle='rgba(255,255,255,.07)';for(let y=0;y<H;y+=tp*2)g.fillRect(0,y,W,tp);});
-  layer('e',TER.e.col,'rgba(20,60,20,.6)',4);
+  layer('t',D?'#c8935a':TR?'#2a8f48':MT?'#3d6d55':FA?'#523a8c':'#2c6a31','rgba(0,0,0,0)',0);
+  if(MT)for(let i=0;i<W*H/26000;i++){const x=R()*W,y=R()*H,r=10+R()*18;m.fillStyle='rgba(255,255,255,.3)';m.beginPath();m.ellipse(x,y,r*1.4,r,R()*3,0,7);m.fill();} // snow patches
+  layer('feg',terOf(h,'f').col,FA?'rgba(30,10,70,.8)':'rgba(20,60,20,.7)',6,g=>{g.fillStyle='rgba(255,255,255,.07)';for(let y=0;y<H;y+=tp*2)g.fillRect(0,y,W,tp);});
+  layer('e',terOf(h,'e').col,'rgba(20,60,20,.6)',4);
   layer('s',terOf(h,'s').col,'rgba(80,60,10,.8)',7,g=>{for(let i=0;i<W*H/900;i++){g.fillStyle='rgba(150,120,50,.25)';g.fillRect(R()*W,R()*H,2,2);}});
-  layer('g',TER.g.col,'rgba(40,110,40,.9)',9,g=>{g.fillStyle='rgba(255,255,255,.07)';for(let x=0;x<W;x+=tp)g.fillRect(x,0,tp/2,H);});
-  layer('w',terOf(h,'w').col,TR?'rgba(215,255,245,.95)':'rgba(0,30,70,.75)',TR?13:8,g=>{g.strokeStyle='rgba(255,255,255,.22)';g.lineWidth=2;for(let i=0;i<W*H/5000;i++){const x=R()*W,y=R()*H;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+8,y-4,x+16,y);g.stroke();}});
+  layer('g',terOf(h,'g').col,'rgba(40,110,40,.9)',9,g=>{g.fillStyle='rgba(255,255,255,.07)';for(let x=0;x<W;x+=tp)g.fillRect(x,0,tp/2,H);});
+  layer('w',terOf(h,'w').col,TR?'rgba(215,255,245,.95)':FA?'rgba(110,15,0,.95)':'rgba(0,30,70,.75)',TR||FA?13:8,g=>{g.strokeStyle=FA?'rgba(255,225,110,.6)':'rgba(255,255,255,.22)';g.lineWidth=2;for(let i=0;i<W*H/5000;i++){const x=R()*W,y=R()*H;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+8,y-4,x+16,y);g.stroke();}});
   // slope arrows on the green
   if(h.slope&&h.slope.str>0){const a=h.slope.dir*Math.PI/4,L=5+h.slope.str*3;m.strokeStyle='rgba(255,255,255,.4)';m.lineWidth=2;
     for(let y=0;y<n;y++)for(let x=0;x<cols;x++){if(T(x,y)!=='g'||(x+y)%2)continue;m.save();m.translate((x+.5)*tp,(y+.5)*tp);m.rotate(a);
@@ -548,10 +644,28 @@ function holeBitmap(h){
   m.fillStyle='#fff';for(const sx of[-1,1]){m.beginPath();m.arc(h.tee.x*PPY+sx*14,h.tee.y*PPY+6,3.5,0,7);m.fill();}
   // trees
   const trees=[];
-  for(let y=0;y<n;y++)for(let x=0;x<cols;x++)if(T(x,y)==='t'){const k=1+(R()<.45?1:0);for(let i=0;i<k;i++)trees.push({x:(x+.2+R()*.6)*tp,y:(y+.2+R()*.6)*tp,r:tp*(D?.26+R()*.14:.5+R()*.3),k:R(),a:R()*6.28});}
+  for(let y=0;y<n;y++)for(let x=0;x<cols;x++)if(T(x,y)==='t'){const k=1+(R()<.45?1:0);for(let i=0;i<k;i++)trees.push({x:(x+.2+R()*.6)*tp,y:(y+.2+R()*.6)*tp,r:tp*(D?.26+R()*.14:FA?.3+R()*.25:MT?.42+R()*.25:.5+R()*.3),k:R(),a:R()*6.28});}
   trees.sort((a,b)=>a.y-b.y);
   m.fillStyle='rgba(0,0,0,.28)';for(const q of trees){m.beginPath();m.arc(q.x+5,q.y+7,q.r,0,7);m.fill();}
   for(const q of trees){
+    if(MT){
+      if(q.k<.78){ // pine seen from above: a dark star with a dusting of snow
+        m.fillStyle='#1f4d3a';m.strokeStyle='#12301f';m.lineWidth=1;m.beginPath();for(let i=0;i<16;i++){const a=q.a+i*Math.PI/8,rr=q.r*(i%2?.55:1);m.lineTo(q.x+Math.cos(a)*rr,q.y+Math.sin(a)*rr);}m.closePath();m.fill();m.stroke();
+        m.fillStyle='#2f7358';m.beginPath();m.arc(q.x,q.y,q.r*.5,0,7);m.fill();m.fillStyle='rgba(255,255,255,.85)';m.beginPath();m.arc(q.x-q.r*.1,q.y-q.r*.1,q.r*.22,0,7);m.fill();
+      }else{ // grey boulder
+        m.fillStyle='#8d949c';m.strokeStyle='#565c63';m.lineWidth=1.5;m.beginPath();m.ellipse(q.x,q.y,q.r*.85,q.r*.62,q.a,0,7);m.fill();m.stroke();
+        m.fillStyle='#c6ccd2';m.beginPath();m.ellipse(q.x-q.r*.2,q.y-q.r*.18,q.r*.36,q.r*.22,q.a,0,7);m.fill();
+      }
+      continue;}
+    if(FA){
+      if(q.k<.7){ // mushroom cap with pale spots
+        m.fillStyle=['#e0457b','#f08a2c','#45b6e8','#b565e0'][Math.floor(q.k*40)%4];m.strokeStyle='rgba(40,10,60,.7)';m.lineWidth=1.5;m.beginPath();m.arc(q.x,q.y,q.r,0,7);m.fill();m.stroke();
+        m.fillStyle='rgba(255,255,255,.88)';for(let i=0;i<5;i++){const a=q.a+i*1.257;m.beginPath();m.arc(q.x+Math.cos(a)*q.r*.56,q.y+Math.sin(a)*q.r*.56,q.r*.16,0,7);m.fill();}m.beginPath();m.arc(q.x,q.y,q.r*.2,0,7);m.fill();
+      }else{ // crystal
+        m.fillStyle='#8ff3ff';m.strokeStyle='#2a7fa8';m.lineWidth=1.5;m.beginPath();for(let i=0;i<4;i++){const a=q.a+i*Math.PI/2,rr=q.r*(i%2?.55:1.1);m.lineTo(q.x+Math.cos(a)*rr,q.y+Math.sin(a)*rr);}m.closePath();m.fill();m.stroke();
+        m.fillStyle='rgba(255,255,255,.85)';m.beginPath();m.arc(q.x-q.r*.15,q.y-q.r*.15,q.r*.18,0,7);m.fill();
+      }
+      continue;}
     if(TR){ // palm seen from above: fronds fanning out from the trunk
       m.strokeStyle='#17602f';m.lineWidth=1;
       for(let i=0;i<7;i++){const a=q.a+i*6.283/7;m.fillStyle=i%2?'#2e9e4f':'#46ba64';m.beginPath();m.ellipse(q.x+Math.cos(a)*q.r*.55,q.y+Math.sin(a)*q.r*.55,q.r*.56,q.r*.2,a,0,7);m.fill();m.stroke();}
@@ -614,7 +728,7 @@ function startRound(course,idxs,opt){
 function startHole(){
   const h=S.course.holes[S.idxs[S.i]];S.h=h;S.bmp=holeBitmap(h);
   S.ball={x:h.tee.x,y:h.tee.y,z:0};S.last={x:h.tee.x,y:h.tee.y};S.strokes=0;
-  S.wind={a:Math.random()*6.283,mph:Math.round(Math.random()*Math.random()*22)};
+  S.wind={a:Math.random()*6.283,mph:Math.round(Math.random()*Math.random()*(h.wind||22))};
   S.state='aim';S.power=0;S.accv=0;S.msg=null;S.after=null;S.cam=null;S.fireT=0;
   S.aim=Math.atan2(h.pin.y-h.tee.y,h.pin.x-h.tee.x);S.gaim=S.aim;mouse.moved=false;
   pickClub();
@@ -746,14 +860,14 @@ function update(dt){
     const f=S.fl,wk=S.wind.mph*.32*(1-eq('ball').wind)*(f.apex/28);
     f.t+=dt/f.T;b.x+=(S.vx+Math.cos(S.wind.a)*wk)*dt;b.y+=(S.vy+Math.sin(S.wind.a)*wk)*dt;b.z=Math.max(0,4*f.apex*f.t*(1-f.t));
     const key=Math.floor(b.x/TILE)+','+Math.floor(b.y/TILE);
-    if(key!==S.tileKey){S.tileKey=key;if(terrainAt(h,b.x,b.y)==='t'&&b.z<(h.theme==='desert'?6:11)&&f.t<1&&Math.random()<.4){setMsg(h.theme==='desert'?'Hit a cactus!':h.theme==='tropical'?'Hit a palm!':'Hit a tree!');S.vx*=.08;S.vy*=.08;b.z=0;S.state='roll';return;}}
+    if(key!==S.tileKey){S.tileKey=key;if(terrainAt(h,b.x,b.y)==='t'&&b.z<(h.theme==='desert'||h.theme==='fantasy'?6:11)&&f.t<1&&Math.random()<.4){setMsg('Hit a '+({desert:'cactus',tropical:'palm',mountain:'pine',fantasy:'mushroom'}[h.theme]||'tree')+'!');S.vx*=.08;S.vy*=.08;b.z=0;S.state='roll';return;}}
     if(f.t>=1){b.z=0;const ter=terrainAt(h,b.x,b.y);
-      if(ter==='o')return penalty('Out of bounds!');if(ter==='w')return penalty('Water hazard!');
+      if(ter==='o')return penalty('Out of bounds!');if(ter==='w')return penalty(waterMsg(h));
       if(distPin()<.5)return holeDone(false);
       const k=S.shotClub.roll*(1-(S.shotClub.cat==='wedge'?eq('wedge').spin:0))*terOf(h,ter).roll;S.vx*=k;S.vy*=k;S.state='roll';}
   }else if(S.state==='roll'){
     for(let i=0;i<5;i++){const hh=dt/5,sp=Math.hypot(S.vx,S.vy),ter=terrainAt(h,b.x,b.y);
-      if(ter==='o')return penalty('Out of bounds!');if(ter==='w')return penalty('Water hazard!');
+      if(ter==='o')return penalty('Out of bounds!');if(ter==='w')return penalty(waterMsg(h));
       const ns=sp-terOf(h,ter).decel*hh;if(ns<=.25||sp<=0){rest();return;}
       S.vx*=ns/sp;S.vy*=ns/sp;
       if(ter==='g'&&h.slope&&h.slope.str){const a=h.slope.dir*Math.PI/4;S.vx+=Math.cos(a)*h.slope.str*.9*hh;S.vy+=Math.sin(a)*h.slope.str*.9*hh;}
@@ -772,7 +886,7 @@ function draw(dt){
   const h=S.h,b=S.ball,tg=camTarget();
   if(!S.cam)S.cam=tg;else{const k=1-Math.exp(-dt*4);S.cam.x+=(tg.x-S.cam.x)*k;S.cam.y+=(tg.y-S.cam.y)*k;S.cam.s+=(tg.s-S.cam.s)*k;}
   const s=S.cam.s,X=x=>(x-S.cam.x)*s+VW/2,Y=y=>(y-S.cam.y)*s+VH/2-CAM_UP; // view is centred above the bottom controls
-  ctx.fillStyle=h.theme==='desert'?'#4a3320':h.theme==='tropical'?'#1a8fa6':'#0d2414';ctx.fillRect(0,0,VW,VH);
+  ctx.fillStyle={desert:'#4a3320',tropical:'#1a8fa6',mountain:'#16302a',fantasy:'#24143f'}[h.theme]||'#0d2414';ctx.fillRect(0,0,VW,VH);
   ctx.imageSmoothingEnabled=true;ctx.drawImage(S.bmp,X(0),Y(0),h.cols*TILE*s,h.rows.length*TILE*s);
   // hole & flag
   const px=X(h.pin.x),py=Y(h.pin.y),fl=clamp(s*6,20,44);
@@ -896,7 +1010,7 @@ function showShop(){
   $$('[data-buy]',UI).forEach(b=>b.onclick=()=>{const[s,i]=b.dataset.buy.split(':'),it=EQUIP[s][+i];if(p.coins<it.price||gearLock(it))return;p.coins-=it.price;p.owned[s].push(+i);p.equip[s]=+i;persist();showShop();});
 }
 const coursePar=c=>c.holes.reduce((a,h)=>a+h.par,0),courseYards=c=>c.holes.reduce((a,h)=>a+holeYards(h),0);
-const allCourses=()=>BUILTIN.concat(save.profile&&save.profile.tour&&save.profile.tour.card?ROOKIE:[],save.courses);
+const allCourses=()=>{const t=(save.profile&&save.profile.tour)||{};return BUILTIN.concat(t.card?ROOKIE:[],t.rookie?PRO:[],save.courses);};
 function showCourses(mode){
   const p=save.profile,play=mode==='play',list=play?allCourses():save.courses;
   UI.innerHTML=`<div class="panel"><div class="row"><h2 style="margin:0">${play?'Choose a course':'Course designer'}</h2><span class="sp"></span>${play?'':'<button class="primary" id="cNew">New course</button><button id="cImp">Import</button>'}<button id="cBack">Back</button></div>
@@ -909,7 +1023,7 @@ function showCourses(mode){
   $$('[data-v]',UI).forEach(b=>b.onclick=()=>showHoles(list[+b.dataset.v],0));
   if(play)return;
   const add=(c,name)=>{const n=JSON.parse(JSON.stringify(c));delete n.builtin;delete n.desc;n.id='u'+Date.now().toString(36)+Math.floor(Math.random()*1e4);n.name=name;save.courses.push(n);persist();return n;};
-  $('#cNew').onclick=()=>{modal(`<h2>New course</h2><p>Give your course a name.</p><input type="text" id="nn" maxlength="30" value="My Course" style="width:100%"><p>Setting</p><select id="nt"><option value="">Parkland (grass and trees)</option><option value="desert">Desert (sand, cactus and rock)</option><option value="tropical">Tropical (palms and ocean)</option></select><div class="row" style="margin-top:14px"><button id="nc">Cancel</button><span class="sp"></span><button class="primary" id="ny">Create</button></div>`);
+  $('#cNew').onclick=()=>{modal(`<h2>New course</h2><p>Give your course a name.</p><input type="text" id="nn" maxlength="30" value="My Course" style="width:100%"><p>Setting</p><select id="nt"><option value="">Parkland (grass and trees)</option><option value="desert">Desert (sand, cactus and rock)</option><option value="tropical">Tropical (palms and ocean)</option><option value="mountain">Mountain (pines, rock and lakes)</option><option value="fantasy">Fantasy (mushrooms, crystals and lava)</option></select><div class="row" style="margin-top:14px"><button id="nc">Cancel</button><span class="sp"></span><button class="primary" id="ny">Create</button></div>`);
     $('#nc').onclick=closeModal;$('#ny').onclick=()=>{const nm=$('#nn').value.trim()||'My Course',th=$('#nt').value||undefined;closeModal();showEditor(add(genCourse(nm,Math.floor(Math.random()*1e9),{theme:th}),nm),0);};};
   $$('[data-cp]',UI).forEach(b=>b.onclick=()=>{const c=BUILTIN[+b.dataset.cp];showEditor(add(c,c.name+' (copy)'),0);});
   $$('[data-ed]',UI).forEach(b=>b.onclick=()=>showEditor(list[+b.dataset.ed],0));
@@ -949,11 +1063,14 @@ const TOURS=[
    events:[{id:'builtin1',mean:20,sd:4},{id:'builtin3',mean:16,sd:4},{id:'builtin2',mean:13,sd:4},{id:'builtin4',mean:10,sd:3.5},{id:'builtin5',mean:7,sd:3.5}]},
   {name:'Rookie Tour',flag:'rookie',prize:[1000,400],wins:2,doneMsg:'Rookie Tour complete!',
    blurb:'The same five courses set up harder: about 10% longer, narrower fairways, trees standing in the fairway, and more bunkers and water. The fields are stronger and the prizes are doubled. Complete it by qualifying in all five events, or by winning any two.',
-   events:[{id:'rookie1',mean:13,sd:3.5},{id:'rookie3',mean:11,sd:3.5},{id:'rookie2',mean:9,sd:3.5},{id:'rookie4',mean:7,sd:3},{id:'rookie5',mean:5,sd:3}]}
+   events:[{id:'rookie1',mean:13,sd:3.5},{id:'rookie3',mean:11,sd:3.5},{id:'rookie2',mean:9,sd:3.5},{id:'rookie4',mean:7,sd:3},{id:'rookie5',mean:5,sd:3}]},
+  {name:'Pro Tour',flag:'pro',prize:[2500,800],wins:2,doneMsg:'Pro Tour complete! You are the Tour Champion.',
+   blurb:'Three new courses built to be hard: a windy mountain course, a fantasy course with rivers of lava, and a finale where every hole is a different world. Prizes are tripled. Complete it by qualifying in all three events, or by winning any two.',
+   events:[{id:'pro1',mean:9,sd:3},{id:'pro2',mean:7,sd:3},{id:'pro3',mean:5,sd:3}]}
 ];
 const TOUR_FIELD=['Ace Barlow','Mia Fontaine','Rory Finch','Sam Okafor','Lena Brandt','Tomas Vega','Priya Nair','Gus Halloran','Yuki Mori','Dana Whitlock','Otis Greer'];
 const TOUR_CUT=3;
-const tourCourse=e=>BUILTIN.concat(ROOKIE).find(c=>c.id===e.id);
+const tourCourse=e=>BUILTIN.concat(ROOKIE,PRO).find(c=>c.id===e.id);
 // a tour is complete with a top-TOUR_CUT finish in every event, or (if the tour sets `wins`) that many different events won
 const tourWins=(tour,t)=>tour.events.filter(e=>t.pos[e.id]===1).length;
 const tourDone=(tour,t)=>tour.events.every(e=>t.pos[e.id]<=TOUR_CUT)||(tour.wins&&tourWins(tour,t)>=tour.wins);
@@ -977,10 +1094,10 @@ function showTour(){
   <p>Each event is 18 holes against a field of ${TOUR_FIELD.length} other golfers. Finish in the top ${TOUR_CUT} to qualify and unlock the next event. Winning an event pays a bigger prize.</p>
   ${TOURS.map((tour,ti)=>{const unlocked=ti===0||t[TOURS[ti-1].flag],n=tour.events.filter(qd).length;
     return `<h3>${tour.name} &mdash; ${t[tour.flag]?'complete':unlocked?n+' of '+tour.events.length+' qualified'+(tour.wins?', '+tourWins(tour,t)+' of '+tour.wins+' wins':''):'locked'}</h3><p class="small">${tour.blurb}</p>`+
-    (!unlocked?`<div class="card"><div class="small">Locked. Qualify in all five ${TOURS[ti-1].name} events first.</div></div>`:
+    (!unlocked?`<div class="card"><div class="small">Locked. Complete the ${TOURS[ti-1].name} first.</div></div>`:
     tour.events.map((e,i)=>{const c=tourCourse(e),open=i===0||qd(tour.events[i-1]),ps=t.pos[e.id];
       return `<div class="card row" style="${qd(e)?'border-color:var(--good)':''}"><div style="flex:1;min-width:180px"><div class="t">Event ${i+1}: ${esc(c.name)}</div><div class="small">Par ${coursePar(c)} &bull; ${courseYards(c)} yd &bull; ${ps?`Best finish: <b>${ord(ps)}</b>${qd(e)?' &mdash; qualified':''}`:open?'Not played yet':'Locked'}</div></div><button data-vh="${ti}:${i}">Holes</button>${open?`<button class="${qd(e)?'':'primary'}" data-ev="${ti}:${i}">${qd(e)?'Play again':'Play event'}</button>`:`<button disabled>Top ${TOUR_CUT} in event ${i} to unlock</button>`}</div>`;}).join(''));}).join('')}
-  <h3>Pro Tour &mdash; ${t[last.flag]?'coming soon':'locked'}</h3><div class="card"><div class="small">${t[last.flag]?'You have completed the Rookie Tour. Pro Tour courses will appear here.':'Complete the Rookie Tour to unlock.'}</div></div></div>`;
+  ${t[last.flag]?'<div class="card" style="border-color:var(--acc);margin-top:16px"><div class="t">Tour Champion</div><div class="small">You have completed every tour. All events stay open to replay.</div></div>':''}</div>`;
   $('#tBack').onclick=showMenu;
   $$('[data-ev]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.ev.split(':').map(Number);startRound(tourCourse(TOURS[ti].events[i]),[...Array(18).keys()],{tour:{t:ti,e:i}});});
   $$('[data-vh]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.vh.split(':').map(Number);showHoles(tourCourse(TOURS[ti].events[i]),0,showTour);});
