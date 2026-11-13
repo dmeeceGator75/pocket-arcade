@@ -1022,11 +1022,12 @@ function showCourses(mode){
   UI.innerHTML=`<div class="panel"><div class="row"><h2 style="margin:0">${play?'Choose a course':'Course designer'}</h2><span class="sp"></span>${play?'':'<button class="primary" id="cNew">New course</button><button id="cImp">Import</button>'}<button id="cBack">Back</button></div>
   ${play?'':'<p>Each course has 18 holes. New courses start with 18 auto-generated holes you can repaint, or build each hole from scratch. Use Export to send a course file to friends; they use Import to play it.</p>'}
   ${list.map((c,i)=>`<div class="card"><div class="row"><div style="flex:1"><div class="t">${esc(c.name)}</div><div class="small">${c.builtin?esc(c.desc)+' &bull; ':''}Par ${coursePar(c)} &bull; ${courseYards(c)} yd${p.best[c.id]!=null?` &bull; Your best: <b>${p.best[c.id]}</b> (${fmtRel(p.best[c.id]-coursePar(c))})`:''}</div></div>
-    ${play?`<button class="primary" data-p="${i}:18">18 holes</button><button data-p="${i}:f">Front 9</button><button data-p="${i}:b">Back 9</button><button data-v="${i}">View holes</button>`:`<button class="primary" data-ed="${i}">Edit</button><button data-ex="${i}">Export</button><button class="danger" data-del="${i}">Delete</button>`}</div></div>`).join('')||'<p>No courses yet &mdash; create your first one.</p>'}
+    ${play?`<button class="primary" data-p="${i}:18">18 holes</button><button data-p="${i}:f">Front 9</button><button data-p="${i}:b">Back 9</button><button data-m="${i}">Map</button><button data-v="${i}">View holes</button>`:`<button class="primary" data-ed="${i}">Edit</button><button data-m="${i}">Map</button><button data-ex="${i}">Export</button><button class="danger" data-del="${i}">Delete</button>`}</div></div>`).join('')||'<p>No courses yet &mdash; create your first one.</p>'}
   ${play?'':`<h3>Start from a built-in course</h3>${BUILTIN.map((c,i)=>`<div class="card row"><div style="flex:1"><div class="t">${esc(c.name)}</div><div class="small">${esc(c.desc)}</div></div><button data-cp="${i}">Copy &amp; edit</button></div>`).join('')}<input type="file" id="cFile" accept=".json,application/json" class="hidden">`}</div>`;
   $('#cBack').onclick=showMenu;
   $$('[data-p]',UI).forEach(b=>b.onclick=()=>{const[i,w]=b.dataset.p.split(':'),all=[...Array(18).keys()];startRound(list[+i],w==='f'?all.slice(0,9):w==='b'?all.slice(9):all);});
   $$('[data-v]',UI).forEach(b=>b.onclick=()=>showHoles(list[+b.dataset.v],0));
+  $$('[data-m]',UI).forEach(b=>b.onclick=()=>showMap(list[+b.dataset.m],()=>showCourses(mode)));
   if(play)return;
   const add=(c,name)=>{const n=JSON.parse(JSON.stringify(c));delete n.builtin;delete n.desc;n.id='u'+Date.now().toString(36)+Math.floor(Math.random()*1e4);n.name=name;save.courses.push(n);persist();return n;};
   $('#cNew').onclick=()=>{modal(`<h2>New course</h2><p>Give your course a name.</p><input type="text" id="nn" maxlength="30" value="My Course" style="width:100%"><p>Setting</p><select id="nt"><option value="">Parkland (grass and trees)</option><option value="desert">Desert (sand, cactus and rock)</option><option value="tropical">Tropical (palms and ocean)</option><option value="mountain">Mountain (pines, rock and lakes)</option><option value="fantasy">Fantasy (mushrooms, crystals and lava)</option></select><div class="row" style="margin-top:14px"><button id="nc">Cancel</button><span class="sp"></span><button class="primary" id="ny">Create</button></div>`);
@@ -1102,10 +1103,11 @@ function showTour(){
     return `<h3>${tour.name} &mdash; ${t[tour.flag]?'complete':unlocked?n+' of '+tour.events.length+' qualified'+(tour.wins?', '+tourWins(tour,t)+' of '+tour.wins+' wins':''):'locked'}</h3><p class="small">${tour.blurb}</p>`+
     (!unlocked?`<div class="card"><div class="small">Locked. Complete the ${TOURS[ti-1].name} first.</div></div>`:
     tour.events.map((e,i)=>{const c=tourCourse(e),open=i===0||qd(tour.events[i-1]),ps=t.pos[e.id];
-      return `<div class="card row" style="${qd(e)?'border-color:var(--good)':''}"><div style="flex:1;min-width:180px"><div class="t">Event ${i+1}: ${esc(c.name)}</div><div class="small">Par ${coursePar(c)} &bull; ${courseYards(c)} yd &bull; ${ps?`Best finish: <b>${ord(ps)}</b>${qd(e)?' &mdash; qualified':''}`:open?'Not played yet':'Locked'}</div></div><button data-vh="${ti}:${i}">Holes</button>${open?`<button class="${qd(e)?'':'primary'}" data-ev="${ti}:${i}">${qd(e)?'Play again':'Play event'}</button>`:`<button disabled>Top ${TOUR_CUT} in event ${i} to unlock</button>`}</div>`;}).join(''));}).join('')}
+      return `<div class="card row" style="${qd(e)?'border-color:var(--good)':''}"><div style="flex:1;min-width:180px"><div class="t">Event ${i+1}: ${esc(c.name)}</div><div class="small">Par ${coursePar(c)} &bull; ${courseYards(c)} yd &bull; ${ps?`Best finish: <b>${ord(ps)}</b>${qd(e)?' &mdash; qualified':''}`:open?'Not played yet':'Locked'}</div></div><button data-vm="${ti}:${i}">Map</button><button data-vh="${ti}:${i}">Holes</button>${open?`<button class="${qd(e)?'':'primary'}" data-ev="${ti}:${i}">${qd(e)?'Play again':'Play event'}</button>`:`<button disabled>Top ${TOUR_CUT} in event ${i} to unlock</button>`}</div>`;}).join(''));}).join('')}
   ${t[last.flag]?'<div class="card" style="border-color:var(--acc);margin-top:16px"><div class="t">Tour Champion</div><div class="small">You have completed every tour. All events stay open to replay.</div></div>':''}</div>`;
   $('#tBack').onclick=showMenu;
   $$('[data-ev]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.ev.split(':').map(Number);startRound(tourCourse(TOURS[ti].events[i]),[...Array(18).keys()],{tour:{t:ti,e:i}});});
+  $$('[data-vm]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.vm.split(':').map(Number);showMap(tourCourse(TOURS[ti].events[i]),showTour);});
   $$('[data-vh]',UI).forEach(b=>b.onclick=()=>{const[ti,i]=b.dataset.vh.split(':').map(Number);showHoles(tourCourse(TOURS[ti].events[i]),0,showTour);});
 }
 
@@ -1153,7 +1155,7 @@ function showHoles(course,i,back){
   UI.innerHTML=`<div class="panel wide"><div class="row"><h2 style="margin:0">${esc(course.name)} &mdash; Hole ${i+1}${h.name?': '+esc(h.name):''}</h2><span class="sp"></span><button id="vPrev" ${i<1?'disabled':''}>&#9664; Prev</button><button id="vNext" ${i>16?'disabled':''}>Next &#9654;</button><button id="vBack">Back</button></div>
   <p><span class="tag">Par ${h.par}</span><span class="tag">${holeYards(h)} yd</span><span class="tag">Green: ${h.slope&&h.slope.str?['','gentle','medium','steep'][h.slope.str]+' slope toward '+DIRS[h.slope.dir].toLowerCase():'flat'}</span></p>
   <canvas id="vCv" style="width:100%;border-radius:10px;border:1px solid var(--line);display:block"></canvas>
-  ${h.note?`<p>${esc(h.note)}</p>`:''}<div class="row" style="margin-top:10px"><span class="small">Tee on the left, green on the right.</span><span class="sp"></span>${save.profile?'<button class="primary" id="vPlay">Practice this hole</button>':''}</div></div>`;
+  ${h.note?`<p>${esc(h.note)}</p>`:''}<div class="row" style="margin-top:10px"><span class="small">Tee on the left, green on the right.</span><span class="sp"></span><button id="vMap">Course map</button>${save.profile?'<button class="primary" id="vPlay">Practice this hole</button>':''}</div></div>`;
   const bmp=holeBitmap(h),c=$('#vCv'),cw=1400,k=cw/bmp.height,ch=Math.round(bmp.width*k);c.width=cw;c.height=ch;const g=c.getContext('2d');
   g.save();g.translate(cw,0);g.rotate(Math.PI/2);g.drawImage(bmp,0,0,ch,cw);g.restore();
   const px=cw-h.pin.y*PPY*k,py=h.pin.x*PPY*k;
@@ -1161,6 +1163,53 @@ function showHoles(course,i,back){
   g.fillStyle='#e63946';g.beginPath();g.moveTo(px,py-34);g.lineTo(px+18,py-27);g.lineTo(px,py-20);g.fill();
   $('#vPrev').onclick=()=>showHoles(course,i-1,back);$('#vNext').onclick=()=>showHoles(course,i+1,back);$('#vBack').onclick=()=>back?back():save.profile?showCourses('play'):showMenu();
   const vp=$('#vPlay');if(vp)vp.onclick=()=>startRound(course,[i],{practice:true,onDone:()=>showHoles(course,i,back)});
+  $('#vMap').onclick=()=>showMap(course,()=>showHoles(course,i,back));
+}
+
+// overhead map of all 18 holes. Holes sit edge to edge and alternate direction, so each green is next to the following tee.
+const mapCache=new Map();let mapToken=0;
+function showMap(course,back){
+  const tok=++mapToken,H=course.holes,n=H.length,nc=innerWidth<700?3:9,nr=Math.ceil(n/nc),cw=nc===3?300:220;
+  const kf=h=>cw/(h.cols*TILE*PPY),hh=h=>h.rows.length*TILE*PPY*kf(h);
+  const rowH=[...Array(nr)].map((_,r)=>Math.ceil(Math.max(...H.slice(r*nc,r*nc+nc).map(hh)))),rowY=rowH.map((_,r)=>rowH.slice(0,r).reduce((a,b)=>a+b,0));
+  const W=nc*cw,HT=rowY[nr-1]+rowH[nr-1];
+  const cell=i=>{const r=Math.floor(i/nc),q=i%nc,c=r%2?nc-1-q:q;return{x:c*cw,y:rowY[r],h:rowH[r],up:i%2===0};}; // rows snake back and forth; holes alternate up and down
+  const pt=(i,x,y)=>{const h=H[i],ce=cell(i),k=kf(h)*PPY,lx=x*k-cw/2,ly=y*k-hh(h)/2,sg=ce.up?1:-1;return[ce.x+cw/2+lx*sg,ce.y+ce.h/2+ly*sg];};
+  const half=(a,b)=>{const t=H.slice(a,b),par=t.reduce((s,h)=>s+h.par,0),yd=t.reduce((s,h)=>s+holeYards(h),0);return`par ${par}, ${yd.toLocaleString()} yd`;};
+  UI.innerHTML=`<div class="panel wide"><div class="row"><h2 style="margin:0">${esc(course.name)} &mdash; Course map</h2><span class="sp"></span><button id="mpBack">Back</button></div>
+  <p><span class="tag">Par ${coursePar(course)}</span><span class="tag">${courseYards(course).toLocaleString()} yd</span><span class="tag">Front 9: ${half(0,9)}</span><span class="tag">Back 9: ${half(9,18)}</span></p>
+  <canvas id="mpCv" style="width:100%;border-radius:10px;border:1px solid var(--line);display:block;cursor:pointer"></canvas>
+  <p class="small" id="mpNote">Drawing map&hellip;</p></div>`;
+  $('#mpBack').onclick=()=>{mapToken++;back?back():save.profile?showCourses('play'):showMenu();};
+  const c=$('#mpCv');c.width=W;c.height=HT;const g=c.getContext('2d');
+  c.onclick=e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*HT/r.height;
+    for(let i=0;i<n;i++){const ce=cell(i);if(x>=ce.x&&x<ce.x+cw&&y>=ce.y&&y<ce.y+ce.h){mapToken++;showHoles(course,i,()=>showMap(course,back));return;}}};
+  const done=()=>{$('#mpNote').textContent='Numbers mark the tees, flags mark the greens, labels give par and yards. Tap a hole for a closer look.';};
+  const u=clamp(W/(c.clientWidth||W/2),1,4); // canvas pixels per screen pixel, so labels stay readable at any width
+  const key=nc+':'+u.toFixed(2)+':'+JSON.stringify(H.map(h=>[h.theme,h.rows])),old=mapCache.get(course);
+  if(old&&old.key===key){g.drawImage(old.cv,0,0);done();return;}
+  const overlay=()=>{
+    g.lineCap='round';g.setLineDash([2*u,4*u]);g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=1.3*u; // walk from each green to the next tee
+    for(let i=0;i<n-1;i++){const a=pt(i,H[i].pin.x,H[i].pin.y),b=pt(i+1,H[i+1].tee.x,H[i+1].tee.y);g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();}
+    g.setLineDash([]);g.textAlign='center';g.textBaseline='middle';
+    for(let i=0;i<n;i++){const h=H[i],ce=cell(i),[px,py]=pt(i,h.pin.x,h.pin.y),[tx,ty]=pt(i,h.tee.x,h.tee.y);
+      g.fillStyle='#111';g.beginPath();g.arc(px,py,1.6*u,0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=1.4*u;g.beginPath();g.moveTo(px,py);g.lineTo(px,py-14*u);g.stroke();
+      g.fillStyle='#e63946';g.beginPath();g.moveTo(px,py-14*u);g.lineTo(px+8*u,py-11*u);g.lineTo(px,py-8*u);g.fill();
+      g.fillStyle='#f4c542';g.strokeStyle='#14301c';g.lineWidth=1.5*u;g.beginPath();g.arc(tx,ty,9*u,0,7);g.fill();g.stroke();
+      g.fillStyle='#14301c';g.font='bold '+10.5*u+'px Segoe UI,sans-serif';g.fillText(i+1,tx,ty+.5*u);
+      const lab='Par '+h.par+' • '+holeYards(h),ly=ce.up?Math.min(ty+17*u,ce.y+ce.h-9*u):Math.max(ty-17*u,ce.y+9*u),lx=clamp(tx,ce.x+33*u,ce.x+cw-33*u);
+      g.font='bold '+10*u+'px Segoe UI,sans-serif';g.lineWidth=2.5*u;g.strokeStyle='rgba(0,0,0,.75)';g.strokeText(lab,lx,ly);g.fillStyle='#fff';g.fillText(lab,lx,ly);}
+    const cv=document.createElement('canvas');cv.width=W;cv.height=HT;cv.getContext('2d').drawImage(c,0,0);mapCache.set(course,{key,cv});done();};
+  let i=0;
+  (function step(){ // one hole per tick so the page stays responsive
+    if(tok!==mapToken)return;if(i>=n){overlay();return;}
+    const h=H[i],ce=cell(i),bmp=holeBitmap(h),th=hh(h);
+    g.fillStyle=terOf(h,'r').col;g.fillRect(ce.x,ce.y,cw,ce.h);
+    if(ce.h-th>2){const ps=Math.max(8,Math.round(100*kf(h))),pc=document.createElement('canvas');pc.width=pc.height=ps;pc.getContext('2d').drawImage(bmp,0,0,100,100,0,0,ps,ps); // space beyond a short hole: repeat the hole's own corner
+      g.fillStyle=g.createPattern(pc,'repeat');g.fillRect(ce.x,ce.y,cw,ce.h);}
+    g.save();g.translate(ce.x+cw/2,ce.y+ce.h/2);if(!ce.up)g.rotate(Math.PI);g.drawImage(bmp,-cw/2,-th/2,cw,th);g.restore();
+    i++;$('#mpNote').textContent='Drawing map\u2026 hole '+i+' of '+n;setTimeout(step,0);
+  })();
 }
 
 /* ---------------- course designer ---------------- */
