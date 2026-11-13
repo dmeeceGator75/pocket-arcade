@@ -95,7 +95,7 @@ html{touch-action:manipulation}
   <div id="hudQuit"><button id="quitBtn">&#10005; Quit</button></div>
   <div id="hudClub"><div id="hudTxt"></div><div class="clubRow"><button id="clubPrev" title="Q">&#9664;</button><div class="nm" id="clubName"></div><button id="clubNext" title="E">&#9654;</button></div></div>
   <div id="hudSwing"><button id="swingBtn" class="primary">Swing</button></div>
-  <div id="hudHelp">Move mouse to aim &bull; Click / Space: start swing, set power, set accuracy &bull; Q / E or wheel: change club &bull; Esc: cancel swing</div>
+  <div id="hudHelp">Click or drag on the course to aim (arrow keys fine-tune) &bull; Swing button / Space: start swing, set power, set accuracy &bull; Q / E or wheel: change club &bull; Esc: cancel swing</div>
 </div>
 <div id="ui"></div>
 <div id="modal" class="hidden"></div>
@@ -714,7 +714,7 @@ const cv=$('#cv'),ctx=cv.getContext('2d');let VW=0,VH=0;
 function resize(){const d=window.devicePixelRatio||1;VW=innerWidth;VH=innerHeight;cv.width=Math.round(VW*d);cv.height=Math.round(VH*d);ctx.setTransform(d,0,0,d,0,0);}
 addEventListener('resize',resize);resize();
 let S=null; // the active round, or null when in menus
-const mouse={x:0,y:0,moved:false};
+const mouse={x:0,y:0,moved:false,down:false};
 const ACC_IN=.1,ACC_OUT=.3; // edges of the centre and light-green accuracy zones, as a fraction of the half-meter
 const CAM_UP=100; // how far above screen centre the view sits, to clear the controls at the bottom
 let isTouch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
@@ -831,14 +831,16 @@ $('#quitBtn').onclick=()=>{if(!S)return;
 $('#clubPrev').onclick=()=>changeClub(-1);$('#clubNext').onclick=()=>changeClub(1);
 
 cv.addEventListener('pointermove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.moved=true;});
-cv.addEventListener('pointerdown',e=>{if(!S)return;mouse.x=e.clientX;mouse.y=e.clientY;mouse.moved=true;isTouch=e.pointerType!=='mouse';if(S.state==='aim')aimFromMouse();if(e.button===2){cancelSwing();return;}
-  if(isTouch&&S.state==='aim')return; // on touch: drag on the course only aims; the Swing button starts the swing
+cv.addEventListener('pointerdown',e=>{if(!S)return;mouse.x=e.clientX;mouse.y=e.clientY;mouse.moved=true;isTouch=e.pointerType!=='mouse';if(e.button===2){cancelSwing();return;}
+  if(S.state==='aim'){mouse.down=true;aimFromMouse();return;} // click or drag on the course only aims; the Swing button (or Space) starts the swing
   action();});
+addEventListener('pointerup',()=>{mouse.down=false;});addEventListener('pointercancel',()=>{mouse.down=false;});
 $('#swingBtn').onpointerdown=e=>{e.preventDefault();action();};
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('wheel',e=>changeClub(e.deltaY>0?1:-1),{passive:true});
 addEventListener('keydown',e=>{if(!S||modalOpen())return;
-  if(e.code==='Space'){e.preventDefault();action();}else if(e.code==='KeyQ')changeClub(-1);else if(e.code==='KeyE')changeClub(1);else if(e.code==='Escape')cancelSwing();});
+  if(e.code==='Space'){e.preventDefault();action();}else if(e.code==='KeyQ')changeClub(-1);else if(e.code==='KeyE')changeClub(1);else if(e.code==='Escape')cancelSwing();
+  else if((e.code==='ArrowLeft'||e.code==='ArrowRight')&&S.state==='aim'){e.preventDefault();S.aim+=(e.code==='ArrowLeft'?-1:1)*(e.shiftKey?5:1)*Math.PI/180;S.gaim=S.aim;}});
 
 function aimFromMouse(){
   const b=S.ball;if(mouse.moved&&S.cam){const wx=(mouse.x-VW/2)/S.cam.s+S.cam.x,wy=(mouse.y-VH/2+CAM_UP)/S.cam.s+S.cam.y;if(Math.hypot(wx-b.x,wy-b.y)>.3)S.aim=Math.atan2(wy-b.y,wx-b.x);}
@@ -850,7 +852,7 @@ function update(dt){
   if(S.after&&!modalOpen()){S.after.t-=dt;if(S.after.t<=0){const f=S.after.fn;S.after=null;f();}}
   const put=CLUBS[S.club].cat==='putter';
   if(S.state==='aim'){
-    aimFromMouse();
+    if(mouse.down)aimFromMouse(); // the aim only moves while the pointer is held on the course
   }else if(S.state==='power'){
     S.mt+=dt;const rise=put?1.25+.03*(p.stats.touch-1)+eq('putter').touch:1.1,ph=(S.mt/rise)%2;S.power=ph<1?ph:2-ph;
     if(S.mt>rise*2){S.state='aim';S.power=0;}
@@ -927,9 +929,13 @@ function draw(dt){
   const gr=ctx.createLinearGradient(mx,0,mx+mw,0);gr.addColorStop(0,'#7fe08a');gr.addColorStop(.7,'#f4c542');gr.addColorStop(1,'#ff6b5b');
   ctx.fillStyle=gr;ctx.fillRect(mx,my,mw*(aiming?S.power:0),26);
   ctx.fillStyle='rgba(255,255,255,.35)';for(let i=1;i<4;i++)ctx.fillRect(mx+mw*i/4,my,1,26);
+  const sm=shotMax(),putm=CLUBS[S.club].cat==='putter',dstr=y=>putm&&y<20?Math.round(y*3)+' ft':Math.round(y)+' yd',pf=distPin()/sm;
+  if(aiming&&pf<=1){const fx=mx+mw*pf; // where the pin sits on the power meter
+    ctx.fillStyle='#e63946';ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.fillRect(fx-1.5,my-4,3,34);ctx.strokeRect(fx-1.5,my-4,3,34);
+    ctx.beginPath();ctx.moveTo(fx+1.5,my-4);ctx.lineTo(fx+12,my+1);ctx.lineTo(fx+1.5,my+6);ctx.closePath();ctx.fill();ctx.stroke();}
   ctx.fillStyle='#0f2716';ctx.fillRect(mx,my+32,mw,16);ctx.fillStyle='#b9ecc0';ctx.fillRect(mx+mw/2*(1-ACC_OUT),my+32,mw*ACC_OUT,16);ctx.fillStyle='#2fbf4f';ctx.fillRect(mx+mw/2*(1-ACC_IN),my+32,mw*ACC_IN,16);
   if(S.state==='acc'){ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.fillRect(mx+mw/2+S.accv*mw/2-3,my+28,6,24);ctx.strokeRect(mx+mw/2+S.accv*mw/2-3,my+28,6,24);}
-  ctx.fillStyle='#fff';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='bold 13px Segoe UI,sans-serif';ctx.textAlign='left';ctx.fillText(S.state==='aim'?(isTouch?'Drag on the course to aim, then tap Swing':'Click to swing'):S.state==='power'?tap+' to set POWER  '+Math.round(S.power*100)+'%':S.state==='acc'?tap+' in the green zone for ACCURACY':'',mx+7,my+18);ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='bold 13px Segoe UI,sans-serif';ctx.textAlign='left';ctx.fillText(S.state==='aim'?(isTouch?'Drag to aim':'Click course to aim')+(pf<=1?' • flag = pin, '+dstr(distPin()):' • pin out of reach'):S.state==='power'?tap+' to set POWER  '+Math.round(S.power*100)+'% • '+dstr(S.power*sm):S.state==='acc'?tap+' in the green zone for ACCURACY':'',mx+7,my+18);ctx.shadowBlur=0;
   // message
   if(S.msg){const a=clamp(2.4-S.msg.t,0,1)*clamp(S.msg.t*6,0,1);ctx.globalAlpha=a;ctx.font='bold 44px Segoe UI,sans-serif';ctx.textAlign='center';ctx.lineWidth=7;ctx.strokeStyle='rgba(0,0,0,.75)';ctx.fillStyle='#f4c542';
     ctx.strokeText(S.msg.text,VW/2,VH*.24);ctx.fillText(S.msg.text,VW/2,VH*.24);ctx.globalAlpha=1;}
