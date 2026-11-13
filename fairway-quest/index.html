@@ -43,6 +43,34 @@ table.sc{border-collapse:collapse;width:100%;font-size:13px;text-align:center;ma
 table.sc td,table.sc th{border:1px solid var(--line);padding:4px 2px;min-width:26px}
 table.sc th{background:#0f2716;color:var(--dim);font-weight:600}
 .under{color:var(--good);font-weight:700}.over{color:var(--bad)}
+/* pro shop: wall of shelves with a shopkeeper and counter in front */
+.shop{margin-top:12px;border-radius:12px;box-shadow:0 0 0 1px var(--line)}
+.shop .wall{padding:6px 12px 18px;border-radius:12px 12px 0 0}
+.shop h4{margin:12px 0 0;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--lab)}
+.shelf{display:flex;gap:8px;overflow-x:auto;padding:6px 4px 0;border-bottom:9px solid var(--shelf);box-shadow:0 6px 7px rgba(0,0,0,.4);scrollbar-width:thin;scrollbar-color:var(--shelf) transparent}
+.gear{flex:1 0 74px;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;background:rgba(0,0,0,.2);border:2px solid transparent;border-radius:8px 8px 0 0;color:#fff;font:inherit;cursor:pointer;overflow:hidden}
+.gear svg{width:44px;height:60px;flex:none}
+.gear .gn{font-size:11.5px;font-weight:700;line-height:1.15;text-align:center;min-height:2.3em}
+.gear .gp{font-size:11px;color:var(--lab)}
+.gear.on{border-color:var(--acc)}
+.gear.sel{background:rgba(255,255,255,.2);border-color:#fff}
+.gear.lock svg,.gear.lock .gn,.gear.lock .gp{opacity:.45}
+.gear .ban{position:absolute;left:-20%;right:-20%;top:24px;transform:rotate(-13deg);background:#b3261e;color:#fff;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:3px 0;text-align:center;box-shadow:0 2px 5px rgba(0,0,0,.5);border-top:1px solid #ffb4a8;border-bottom:1px solid #6d120d}
+.counter{position:sticky;bottom:0;z-index:2}
+.cback{display:flex;align-items:flex-end;gap:12px;padding:10px 12px 0;background:var(--back);box-shadow:0 -6px 10px rgba(0,0,0,.35)}
+.keeper{width:70px;height:84px;flex:none;display:block}
+.bubble{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:#fffdf5;color:#1c2a1f;border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:13px;position:relative}
+.bubble:before{content:"";position:absolute;left:-9px;bottom:18px;border:6px solid transparent;border-right-color:#fffdf5;border-left:0}
+.bubble .bt{flex:1 1 190px;min-width:0}
+.bubble .t{font-weight:800;font-size:15px}
+.bubble .why{color:#8a2a1c;font-weight:600}
+.ctop{height:26px;background:var(--ctr);border-top:5px solid var(--trim);border-radius:0 0 12px 12px;box-shadow:inset 0 -9px 10px rgba(0,0,0,.28)}
+.shop0{--shelf:#8f6b3f;--ctr:repeating-linear-gradient(90deg,#7a5430 0 58px,#6c4927 58px 60px);--trim:#5c3d20;--lab:#e6d6bd;--back:#54442f}
+.shop0 .wall{background:#6a5743 radial-gradient(rgba(0,0,0,.3) 1.5px,transparent 2px) 0 0/14px 14px}
+.shop1{--shelf:#c0915a;--ctr:linear-gradient(#b27a41,#8e5c2c);--trim:#e0bb68;--lab:#c6d6ea;--back:#172b44}
+.shop1 .wall{background:#1d3654 repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 2px,transparent 2px 26px)}
+.shop2{--shelf:#d4af37;--ctr:linear-gradient(100deg,#f1f1f4,#cfd0d6 35%,#f6f6f8 55%,#c4c5cc 80%,#ececf0);--trim:#d4af37;--lab:#e3cf8f;--back:#0e0e12}
+.shop2 .wall{background:#17171c repeating-linear-gradient(90deg,rgba(212,175,55,.16) 0 1px,transparent 1px 40px)}
 .tag{display:inline-block;background:#0f2716;border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--dim);margin-right:6px}
 .coin{color:var(--acc);font-weight:700}
 /* HUD */
@@ -1004,16 +1032,49 @@ function showGolfer(){
   $('#gDel').onclick=()=>{modal(`<h2>Delete ${esc(p.name)}?</h2><p>All levels, coins and equipment will be lost, and this golfer comes off the leaderboards. Your courses are kept.</p><div class="row"><button class="danger" id="dy">Delete</button><span class="sp"></span><button class="primary" id="dn">Cancel</button></div>`);
     $('#dn').onclick=closeModal;$('#dy').onclick=()=>{closeModal();lbRemove(p);save.profile=null;persist();showCreate(true);};};
 }
-function showShop(){
-  const p=save.profile;
-  UI.innerHTML=`<div class="panel wide"><div class="row"><h2 style="margin:0">Pro shop</h2><span class="tag">Level ${p.level}</span><span class="tag coin">${p.coins} coins</span><span class="sp"></span><button id="sBack">Back</button></div>
-  <p>Better gear unlocks as you level up. Halcyon gear needs a Tour Card, and Vanta gear needs a Rookie Tour event win. Win coins by playing holes and tour events.</p>
-  ${Object.keys(SLOTS).map(s=>`<h3>${SLOTS[s]}</h3>`+EQUIP[s].map((it,i)=>{const own=p.owned[s].includes(i),on=p.equip[s]===i;
-    const btn=on?'<button disabled>Equipped</button>':own?`<button data-eq="${s}:${i}">Equip</button>`:gearLock(it)?`<button disabled>${gearLock(it)}</button>`:`<button class="primary" data-buy="${s}:${i}" ${p.coins<it.price?'disabled':''}>Buy ${it.price}</button>`;
-    return `<div class="card row" style="${on?'border-color:var(--acc)':''}"><div style="flex:1"><div class="t">${it.brand?`<span class="tag">${it.brand}</span>`:''}${it.name}</div><div class="small">${equipDesc(s,it)}${own?'':` &bull; needs level ${it.lvl}${it.req==='card'?' and a Tour Card':it.req==='rookieWin'?' and a Rookie Tour event win':''}`}</div></div>${btn}</div>`;}).join('')).join('')}</div>`;
+// ---- pro shop: gear on shelves behind a counter; the shop gets smarter as the golfer moves up the tours ----
+const GEAR_COL=['#8d948d','#6fb3e8','#c98a45','#6fd3c4','#b792ff','#f4c542','#16161b'];
+function gearIcon(slot,i){
+  const dk=i===6,c=GEAR_COL[i]||GEAR_COL[0],edge=dk?'#f4c542':'rgba(0,0,0,.5)',shaft=dk?'#4a4a55':'#d5dcd6';
+  if(slot==='ball')return `<svg viewBox="0 0 48 64"><rect x="7" y="32" width="34" height="27" rx="3" fill="${c}" stroke="${edge}" stroke-width="1.5"/><rect x="7" y="41" width="34" height="5" fill="rgba(255,255,255,.3)"/><circle cx="24" cy="21" r="12" fill="#fff" stroke="rgba(0,0,0,.45)" stroke-width="1.2"/><g fill="#c3cac4"><circle cx="19" cy="17" r="1.4"/><circle cx="25" cy="15" r="1.4"/><circle cx="29" cy="20" r="1.4"/><circle cx="22" cy="23" r="1.4"/><circle cx="27" cy="27" r="1.4"/><circle cx="17" cy="25" r="1.4"/></g></svg>`;
+  const head={driver:'M30 43q-19-2-22 9q-1 9 9 9h9q6 0 6-6v-8q0-3-2-4z',irons:'M30 47l-18 8q-4 3 0 6h14q5 0 5-5v-7z',wedge:'M30 44l-20 10q-4 4 1 7h15q5 0 5-5v-10z',putter:'M26 50h4v5h3v6h-25v-6h18z'}[slot];
+  return `<svg viewBox="0 0 48 64"><line x1="28.5" y1="5" x2="28.5" y2="50" stroke="${shaft}" stroke-width="2.6" stroke-linecap="round"/><rect x="26.3" y="3" width="4.4" height="15" rx="2" fill="#20242a"/><path d="${head}" fill="${c}" stroke="${edge}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+const SHOP_LOOK=[
+  {name:'Clubhouse Pro Shop',hi:"Welcome in. Nothing fancy here, but it will get you round.",body:'#3f7d4c',cap:'#b3261e'},
+  {name:'Tour Pro Shop',hi:'A Tour Card holder! The Halcyon range is open to you now.',body:'#f1f4f8',cap:'#1d3654'},
+  {name:'Champions Pro Shop',hi:'Welcome back, pro. Only the best on these shelves.',body:'#1c1c22',cap:'#d4af37'}];
+const shopTier=()=>{const t=save.profile.tour||{};return t.rookie?2:t.card?1:0;};
+// short banner for gear that cannot be bought yet, and the longer reason the shopkeeper gives
+function gearBanner(it){
+  const p=save.profile,t=p.tour||{pos:{}};
+  if(it.req==='card'&&!t.card)return['Rookie Tour','Available on the Rookie Tour. Earn your Tour Card by finishing top '+TOUR_CUT+' in every Qualifying event.'];
+  if(it.req==='rookieWin'&&!tourWins(TOURS[1],t))return['Win a Rookie event','Available once you win a Rookie Tour event.'];
+  if(p.level<it.lvl)return['Level '+it.lvl,'Available at level '+it.lvl+'. You are level '+p.level+'.'];
+  return null;
+}
+let shopSel=null;
+function showShop(keep){
+  const p=save.profile,tier=shopTier(),look=SHOP_LOOK[tier];if(keep!==true)shopSel=null;
+  UI.innerHTML=`<div class="panel wide"><div class="row"><h2 style="margin:0">${look.name}</h2><span class="tag">Level ${p.level}</span><span class="tag coin">${p.coins} coins</span><span class="sp"></span><button id="sBack">Back</button></div>
+  <div class="shop shop${tier}"><div class="wall">
+  ${Object.keys(SLOTS).map(s=>`<h4>${SLOTS[s]}</h4><div class="shelf">`+EQUIP[s].map((it,i)=>{const own=p.owned[s].includes(i),on=p.equip[s]===i,lock=own?null:gearBanner(it);
+    return `<button class="gear${on?' on':''}${lock?' lock':''}" data-g="${s}:${i}">${gearIcon(s,i)}<span class="gn">${it.name}</span><span class="gp">${on?'In your bag':own?'Owned':it.price+' coins'}</span>${lock?`<span class="ban">${lock[0]}</span>`:''}</button>`;}).join('')+'</div>').join('')}
+  </div><div class="counter"><div class="cback">
+    <svg class="keeper" viewBox="0 0 70 84"><path d="M6 84q0-34 29-34q29 0 29 34z" fill="${look.body}"/>${tier===0?'<path d="M22 84v-26h26v26z" fill="#e9e2cf"/><path d="M22 58l6-8M48 58l-6-8" stroke="#e9e2cf" stroke-width="3"/>':tier===1?'<path d="M27 51l8 9l8-9" fill="none" stroke="#1d3654" stroke-width="3"/>':'<path d="M35 52l-9 32h18z" fill="#fff"/><path d="M29 55l6 4l6-4v7l-6-3l-6 3z" fill="#d4af37"/>'}<rect x="29" y="42" width="12" height="12" fill="#dba77c"/><circle cx="35" cy="29" r="17" fill="#e8bd95"/><path d="M17 27q1-19 18-19q17 0 18 19q-9-6-18-6q-9 0-18 6z" fill="${look.cap}"/><path d="M15 27q20-9 40 0v3q-20-7-40 0z" fill="${look.cap}"/><circle cx="29" cy="32" r="2" fill="#2a2018"/><circle cx="41" cy="32" r="2" fill="#2a2018"/><path d="M29 39q6 5 12 0" fill="none" stroke="#2a2018" stroke-width="2" stroke-linecap="round"/></svg>
+    <div class="bubble" id="shBub"></div></div><div class="ctop"></div></div></div></div>`;
   $('#sBack').onclick=showMenu;
-  $$('[data-eq]',UI).forEach(b=>b.onclick=()=>{const[s,i]=b.dataset.eq.split(':');p.equip[s]=+i;persist();showShop();});
-  $$('[data-buy]',UI).forEach(b=>b.onclick=()=>{const[s,i]=b.dataset.buy.split(':'),it=EQUIP[s][+i];if(p.coins<it.price||gearLock(it))return;p.coins-=it.price;p.owned[s].push(+i);p.equip[s]=+i;persist();showShop();});
+  const redraw=()=>{const sl=$$('.shelf',UI).map(e=>e.scrollLeft),sc=document.scrollingElement,st=[UI.scrollTop,sc?sc.scrollTop:0];showShop(true);$$('.shelf',UI).forEach((e,i)=>e.scrollLeft=sl[i]);UI.scrollTop=st[0];if(sc)sc.scrollTop=st[1];};
+  const bubble=()=>{
+    $$('.gear',UI).forEach(b=>b.classList.toggle('sel',!!shopSel&&b.dataset.g===shopSel));
+    const bub=$('#shBub');if(!shopSel){bub.innerHTML=`<div class="bt"><div class="t">${look.hi}</div><div>Tap anything on the shelves to take a closer look.</div></div>`;return;}
+    const[s,si]=shopSel.split(':'),i=+si,it=EQUIP[s][i],own=p.owned[s].includes(i),on=p.equip[s]===i,lock=own?null:gearBanner(it),short=!own&&!lock&&p.coins<it.price;
+    bub.innerHTML=`<div class="bt"><div class="t">${it.brand?`<span class="tag">${it.brand}</span>`:''}${it.name}</div><div>${equipDesc(s,it)}${own?'':' &bull; '+it.price+' coins'}</div>${lock?`<div class="why">${lock[1]}</div>`:short?`<div class="why">You need ${it.price-p.coins} more coins.</div>`:on?'<div>This is in your bag.</div>':''}</div>`+
+      (on?'<button disabled>Equipped</button>':own?'<button class="primary" id="shGo">Equip</button>':lock?'<button disabled>Locked</button>':`<button class="primary" id="shGo" ${short?'disabled':''}>Buy ${it.price}</button>`);
+    const go=$('#shGo');if(go)go.onclick=()=>{if(own)p.equip[s]=i;else{if(p.coins<it.price||gearLock(it))return;p.coins-=it.price;p.owned[s].push(i);p.equip[s]=i;toast(it.name+' is in your bag.');}persist();redraw();};
+  };
+  $$('.gear',UI).forEach(b=>b.onclick=()=>{shopSel=b.dataset.g;bubble();});
+  bubble();
 }
 const coursePar=c=>c.holes.reduce((a,h)=>a+h.par,0),courseYards=c=>c.holes.reduce((a,h)=>a+holeYards(h),0);
 const allCourses=()=>{const t=(save.profile&&save.profile.tour)||{};return BUILTIN.concat(t.card?ROOKIE:[],t.rookie?PRO:[],save.courses);};
